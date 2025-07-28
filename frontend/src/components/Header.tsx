@@ -144,7 +144,7 @@ const Header: React.FC = () => {
             </div>
             
             <div style={{ marginLeft: '0.75rem', position: 'relative' }}>
-              <Menu as="div" className="relative inline-block text-left">
+              <Menu as="div" style={{ position: 'relative', display: 'inline-block', textAlign: 'left' }}>
                 <div>
                   <Menu.Button style={{ 
                     display: 'flex', 

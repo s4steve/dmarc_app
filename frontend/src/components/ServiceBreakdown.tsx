@@ -43,15 +43,20 @@ const ServiceBreakdown: React.FC<ServiceBreakdownProps> = ({ services }) => {
   const getServiceIcon = (serviceName: string) => {
     if (serviceName === 'unknown') {
       return (
-        <div className="w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center mr-3">
-          <span className="text-xs text-white font-bold">?</span>
+        <div style={{ width: '1rem', height: '1rem', backgroundColor: '#9ca3af', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '0.75rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'white', fontWeight: 'bold' }}>?</span>
         </div>
       );
     }
     return (
       <div 
-        className="w-4 h-4 rounded-full mr-3" 
-        style={{ backgroundColor: getServiceColor(serviceName) }}
+        style={{ 
+          width: '1rem', 
+          height: '1rem', 
+          borderRadius: '50%', 
+          marginRight: '0.75rem',
+          backgroundColor: getServiceColor(serviceName) 
+        }}
       />
     );
   };
@@ -71,28 +76,28 @@ const ServiceBreakdown: React.FC<ServiceBreakdownProps> = ({ services }) => {
   }));
 
   return (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+    <div style={{ backgroundColor: 'white', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', borderRadius: '0.5rem' }}>
+      <div style={{ padding: '1.25rem' }}>
+        <h3 style={{ fontSize: '1.125rem', lineHeight: '1.75rem', fontWeight: '500', color: '#111827', marginBottom: '1rem' }}>
           Email Services Breakdown
         </h3>
         
         {services.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            <div style={{ width: '4rem', height: '4rem', margin: '0 auto 1rem', backgroundColor: '#f3f4f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg style={{ width: '2rem', height: '2rem', color: '#9ca3af' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <p className="text-gray-500 text-sm">No service data available</p>
-            <p className="text-gray-400 text-xs mt-1">Upload DMARC reports to see email service breakdown</p>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>No service data available</p>
+            <p style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: '0.25rem' }}>Upload DMARC reports to see email service breakdown</p>
           </div>
         ) : (
           <>
-            <div className="h-64 mb-6">
+            <div style={{ height: '16rem', marginBottom: '1.5rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <CartesianGrid strokeDasharray="3 3" style={{ opacity: 0.3 }} />
                   <XAxis 
                     dataKey="name" 
                     tick={{ fontSize: 11 }}
@@ -131,10 +136,10 @@ const ServiceBreakdown: React.FC<ServiceBreakdownProps> = ({ services }) => {
               </ResponsiveContainer>
             </div>
             
-            <div className="space-y-3">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-sm font-medium text-gray-700">Service Details</h4>
-                <span className="text-xs text-gray-500">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>Service Details</h4>
+                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                   Total: {totalEmails.toLocaleString()} emails
                 </span>
               </div>
@@ -143,29 +148,33 @@ const ServiceBreakdown: React.FC<ServiceBreakdownProps> = ({ services }) => {
                 const percentage = totalEmails > 0 ? (service.email_count / totalEmails * 100) : 0;
                 
                 return (
-                  <div key={index} className="flex justify-between items-center py-3 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center flex-1">
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '0.5rem', transition: 'background-color 0.2s' }}
+                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}>
+                    <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                       {getServiceIcon(service.service)}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#111827' }}>
                             {formatServiceName(service.service)}
                           </span>
-                          <div className="text-right">
-                            <div className="text-sm font-semibold text-gray-900">
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>
                               {service.email_count.toLocaleString()}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                               {percentage.toFixed(1)}% of total
                             </div>
                           </div>
                         </div>
                         
                         {/* Progress bar */}
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                        <div style={{ marginTop: '0.5rem', width: '100%', backgroundColor: '#e5e7eb', borderRadius: '9999px', height: '0.375rem' }}>
                           <div 
-                            className="h-1.5 rounded-full transition-all duration-300"
                             style={{ 
+                              height: '0.375rem', 
+                              borderRadius: '9999px', 
+                              transition: 'all 0.3s',
                               width: `${Math.max(percentage, 2)}%`,
                               backgroundColor: getServiceColor(service.service)
                             }}
@@ -178,8 +187,8 @@ const ServiceBreakdown: React.FC<ServiceBreakdownProps> = ({ services }) => {
               })}
               
               {services.length > 8 && (
-                <div className="text-center pt-2">
-                  <span className="text-xs text-gray-500">
+                <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                     And {services.length - 8} more services...
                   </span>
                 </div>

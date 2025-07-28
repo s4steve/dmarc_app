@@ -11,8 +11,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
+        <div style={{ 
+          animation: 'spin 1s linear infinite', 
+          borderRadius: '50%', 
+          height: '8rem', 
+          width: '8rem', 
+          borderBottom: '2px solid #2563eb' 
+        }}></div>
       </div>
     );
   }

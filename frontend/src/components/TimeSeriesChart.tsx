@@ -29,12 +29,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({ data }) => {
   }));
 
   return (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+    <div style={{ backgroundColor: 'white', overflow: 'hidden', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', borderRadius: '0.5rem' }}>
+      <div style={{ padding: '1.25rem' }}>
+        <h3 style={{ fontSize: '1.125rem', lineHeight: '1.75rem', fontWeight: '500', color: '#111827', marginBottom: '1rem' }}>
           Email Volume Trends
         </h3>
-        <div className="h-80">
+        <div style={{ height: '20rem' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />

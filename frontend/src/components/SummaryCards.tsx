@@ -44,30 +44,50 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ summary }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
       {cards.map((card, index) => (
         <div 
           key={index} 
-          className="bg-white shadow rounded-lg p-5"
+          style={{ 
+            backgroundColor: 'white', 
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', 
+            borderRadius: '0.5rem',
+            padding: '1.25rem'
+          }}
         >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ flexShrink: 0 }}>
               <div 
-                className="p-3 rounded-md"
-                style={{ backgroundColor: card.bgColor }}
+                style={{ 
+                  padding: '0.75rem', 
+                  borderRadius: '0.375rem',
+                  backgroundColor: card.bgColor
+                }}
               >
                 <card.icon 
-                  className="h-6 w-6"
-                  style={{ color: card.iconColor }}
+                  style={{ 
+                    height: '1.5rem', 
+                    width: '1.5rem', 
+                    color: card.iconColor 
+                  }} 
                 />
               </div>
             </div>
-            <div className="ml-5 flex-1">
+            <div style={{ marginLeft: '1.25rem', flex: 1 }}>
               <div>
-                <div className="text-sm font-medium text-gray-500 mb-1">
+                <div style={{ 
+                  fontSize: '0.875rem', 
+                  fontWeight: '500', 
+                  color: '#6B7280',
+                  marginBottom: '0.25rem'
+                }}>
                   {card.title}
                 </div>
-                <div className="text-lg font-semibold text-gray-900">
+                <div style={{ 
+                  fontSize: '1.125rem', 
+                  fontWeight: '600', 
+                  color: '#111827' 
+                }}>
                   {card.value}
                 </div>
               </div>

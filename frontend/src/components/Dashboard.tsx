@@ -74,11 +74,11 @@ const Dashboard: React.FC = () => {
         return <ConfigurationGuide />;
       case 'upload':
         return (
-          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="px-4 py-6 sm:px-0">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Upload DMARC Reports</h1>
-                <p className="mt-1 text-sm text-gray-600">
+          <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem 1rem' }}>
+            <div style={{ padding: '1.5rem 0' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827' }}>Upload DMARC Reports</h1>
+                <p style={{ marginTop: '0.25rem', fontSize: '0.875rem', color: '#6b7280' }}>
                   Upload XML DMARC aggregate reports from your email providers
                 </p>
               </div>
@@ -94,12 +94,12 @@ const Dashboard: React.FC = () => {
   const renderDashboardContent = () => {
     if (!selectedDomain) {
       return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-center h-64">
-            <div className="text-lg font-medium text-gray-500 mb-2">
+        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '16rem' }}>
+            <div style={{ fontSize: '1.125rem', fontWeight: '500', color: '#6b7280', marginBottom: '0.5rem' }}>
               No Domain Selected
             </div>
-            <div className="text-sm text-gray-400 text-center">
+            <div style={{ fontSize: '0.875rem', color: '#9ca3af', textAlign: 'center' }}>
               Please select a domain from the header or add a new domain to start monitoring DMARC data.
             </div>
           </div>
@@ -109,9 +109,15 @@ const Dashboard: React.FC = () => {
 
     if (isLoading) {
       return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '16rem' }}>
+            <div style={{ 
+              animation: 'spin 1s linear infinite', 
+              borderRadius: '50%', 
+              height: '8rem', 
+              width: '8rem', 
+              borderBottom: '2px solid #2563eb' 
+            }}></div>
           </div>
         </div>
       );
@@ -119,43 +125,59 @@ const Dashboard: React.FC = () => {
 
     if (error) {
       return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            <p className="font-medium">Error loading dashboard data</p>
-            <p className="text-sm mt-1">{error}</p>
+        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1rem' }}>
+          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '1rem', borderRadius: '0.5rem' }}>
+            <p style={{ fontWeight: '500' }}>Error loading dashboard data</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{error}</p>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <div className="mb-4 sm:mb-0">
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">
+      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1rem' }}>
+        <div style={{ padding: '1.5rem 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '0.25rem' }}>
                 DMARC Analytics Dashboard
               </h1>
-              <p className="text-sm text-gray-600">
+              <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
                 Welcome back, {user?.full_name || user?.email}
                 {selectedDomain && (
-                  <span className="ml-2 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                  <span style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: '500' }}>
                     {selectedDomain.name}
                   </span>
                 )}
               </p>
             </div>
             
-            <div className="flex space-x-2">
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => handleTimeRangeChange(days)}
-                  className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
-                    selectedDays === days
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    borderRadius: '0.375rem',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: selectedDays === days ? '#2563eb' : 'white',
+                    color: selectedDays === days ? 'white' : '#374151',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedDays !== days) {
+                      e.currentTarget.style.backgroundColor = '#f9fafb';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedDays !== days) {
+                      e.currentTarget.style.backgroundColor = 'white';
+                    }
+                  }}
                 >
                   {days}d
                 </button>
@@ -163,10 +185,10 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {summary && <SummaryCards summary={summary} />}
             
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
               <TimeSeriesChart data={timeSeriesData} />
               {summary && <ServiceBreakdown services={summary.top_services} />}
             </div>
@@ -177,7 +199,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       <Header />
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
       {renderTabContent()}

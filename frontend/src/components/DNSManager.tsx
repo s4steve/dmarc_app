@@ -384,7 +384,7 @@ const DNSManager: React.FC = () => {
         )}
 
         {dnsResult && (
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {/* Overall Status */}
             <div style={{
               border: `1px solid ${getStatusStyle(dnsResult.overall_status).borderColor}`,

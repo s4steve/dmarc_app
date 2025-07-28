@@ -6,7 +6,7 @@ from ..core.security import get_password_hash, verify_password
 from .elasticsearch import es_service
 
 class UserService:
-    def create_user(self, user_data: UserCreate) -> User:
+    async def create_user(self, user_data: UserCreate) -> User:
         user_id = str(uuid.uuid4())
         hashed_password = get_password_hash(user_data.password)
         now = datetime.utcnow().isoformat()
@@ -26,7 +26,7 @@ class UserService:
         es_service.index_document("users", user_id, user_doc)
         return User(**{k: v for k, v in user_doc.items() if k != "hashed_password"})
     
-    def get_user_by_email(self, email: str) -> Optional[UserInDB]:
+    async def get_user_by_email(self, email: str) -> Optional[UserInDB]:
         query = {
             "query": {
                 "term": {"email": email}
@@ -39,22 +39,22 @@ class UserService:
             return UserInDB(**user_data)
         return None
     
-    def get_user_by_id(self, user_id: str) -> Optional[User]:
+    async def get_user_by_id(self, user_id: str) -> Optional[User]:
         result = es_service.get_document("users", user_id)
         if result:
             user_data = result["_source"]
             return User(**{k: v for k, v in user_data.items() if k != "hashed_password"})
         return None
     
-    def authenticate_user(self, email: str, password: str) -> Optional[UserInDB]:
-        user = self.get_user_by_email(email)
+    async def authenticate_user(self, email: str, password: str) -> Optional[UserInDB]:
+        user = await self.get_user_by_email(email)
         if not user:
             return None
         if not verify_password(password, user.hashed_password):
             return None
         return user
     
-    def get_users_by_customer(self, customer_id: str) -> List[User]:
+    async def get_users_by_customer(self, customer_id: str) -> List[User]:
         query = {
             "query": {
                 "term": {"customer_id": customer_id}
@@ -68,7 +68,7 @@ class UserService:
             users.append(User(**{k: v for k, v in user_data.items() if k != "hashed_password"}))
         return users
     
-    def update_user(self, user_id: str, user_update: UserUpdate) -> Optional[User]:
+    async def update_user(self, user_id: str, user_update: UserUpdate) -> Optional[User]:
         current_user = es_service.get_document("users", user_id)
         if not current_user:
             return None
@@ -81,7 +81,7 @@ class UserService:
         es_service.index_document("users", user_id, user_data)
         return User(**{k: v for k, v in user_data.items() if k != "hashed_password"})
     
-    def delete_user(self, user_id: str) -> bool:
+    async def delete_user(self, user_id: str) -> bool:
         try:
             es_service.delete_document("users", user_id)
             return True

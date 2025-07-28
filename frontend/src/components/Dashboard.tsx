@@ -94,12 +94,12 @@ const Dashboard: React.FC = () => {
   const renderDashboardContent = () => {
     if (!selectedDomain) {
       return (
-        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '16rem' }}>
-            <div style={{ fontSize: '1.125rem', fontWeight: '500', color: '#6B7280', marginBottom: '0.5rem' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="text-lg font-medium text-gray-500 mb-2">
               No Domain Selected
             </div>
-            <div style={{ fontSize: '0.875rem', color: '#9CA3AF', textAlign: 'center' }}>
+            <div className="text-sm text-gray-400 text-center">
               Please select a domain from the header or add a new domain to start monitoring DMARC data.
             </div>
           </div>
@@ -109,15 +109,9 @@ const Dashboard: React.FC = () => {
 
     if (isLoading) {
       return (
-        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '16rem' }}>
-            <div style={{ 
-              animation: 'spin 1s linear infinite', 
-              borderRadius: '50%', 
-              height: '8rem', 
-              width: '8rem', 
-              borderBottom: '2px solid #2563EB' 
-            }}></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
           </div>
         </div>
       );
@@ -125,58 +119,43 @@ const Dashboard: React.FC = () => {
 
     if (error) {
       return (
-        <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem' }}>
-          <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', padding: '1rem', borderRadius: '0.375rem' }}>
-            {error}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <p className="font-medium">Error loading dashboard data</p>
+            <p className="text-sm mt-1">{error}</p>
           </div>
         </div>
       );
     }
 
     return (
-      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem' }}>
-        <div style={{ padding: '1.5rem 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div>
-              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#111827', marginBottom: '0.25rem' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">
                 DMARC Analytics Dashboard
               </h1>
-              <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+              <p className="text-sm text-gray-600">
                 Welcome back, {user?.full_name || user?.email}
                 {selectedDomain && (
-                  <span style={{ marginLeft: '0.5rem', padding: '0.125rem 0.5rem', backgroundColor: '#EFF6FF', color: '#2563EB', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: '500' }}>
+                  <span className="ml-2 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
                     {selectedDomain.name}
                   </span>
                 )}
               </p>
             </div>
             
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex space-x-2">
               {[7, 30, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => handleTimeRangeChange(days)}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    borderRadius: '0.375rem',
-                    border: '1px solid #D1D5DB',
-                    backgroundColor: selectedDays === days ? '#2563EB' : 'white',
-                    color: selectedDays === days ? 'white' : '#374151',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedDays !== days) {
-                      e.currentTarget.style.backgroundColor = '#F9FAFB';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedDays !== days) {
-                      e.currentTarget.style.backgroundColor = 'white';
-                    }
-                  }}
+                  className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                    selectedDays === days
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
                   {days}d
                 </button>
@@ -184,10 +163,10 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="space-y-6">
             {summary && <SummaryCards summary={summary} />}
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <TimeSeriesChart data={timeSeriesData} />
               {summary && <ServiceBreakdown services={summary.top_services} />}
             </div>

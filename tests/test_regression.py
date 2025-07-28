@@ -309,3 +309,83 @@ class TestRegressionBugs:
         )
         assert response.status_code == 400
         assert "Only XML and XML.GZ files are allowed" in response.json()["detail"]
+    
+    def test_third_party_service_identification_working(self):
+        """REGRESSION TEST: Ensure third-party service identification works properly"""
+        # This was the main missing functionality - services should be identified, not all set to "unknown"
+        
+        from backend.app.services.third_party_service import third_party_service_identifier
+        from backend.app.services.dmarc_service import DMARCService
+        
+        # Test direct IP identification
+        assert third_party_service_identifier.identify_service_by_ip("209.85.128.1") == "Google Workspace"
+        assert third_party_service_identifier.identify_service_by_ip("205.201.128.1") == "Mailchimp"
+        assert third_party_service_identifier.identify_service_by_ip("149.72.0.1") == "SendGrid"
+        assert third_party_service_identifier.identify_service_by_ip("1.2.3.4") == "unknown"
+        assert third_party_service_identifier.identify_service_by_ip("invalid-ip") == "unknown"
+        
+        # Test full DMARC processing pipeline with service identification
+        service = DMARCService()
+        
+        xml_with_known_ips = """<?xml version="1.0"?>
+        <feedback>
+            <report_metadata>
+                <org_name>Test</org_name>
+                <email>test@example.com</email>
+                <report_id>test</report_id>
+                <date_range><begin>1640995200</begin><end>1641081600</end></date_range>
+            </report_metadata>
+            <policy_published><domain>example.com</domain><p>none</p></policy_published>
+            <record>
+                <row>
+                    <source_ip>209.85.128.1</source_ip>
+                    <count>100</count>
+                    <policy_evaluated>
+                        <disposition>none</disposition>
+                        <dkim>pass</dkim>
+                        <spf>pass</spf>
+                    </policy_evaluated>
+                </row>
+                <identifiers><header_from>example.com</header_from></identifiers>
+                <auth_results>
+                    <spf><result>pass</result></spf>
+                    <dkim><result>pass</result></dkim>
+                </auth_results>
+            </record>
+            <record>
+                <row>
+                    <source_ip>205.201.128.1</source_ip>
+                    <count>50</count>
+                    <policy_evaluated>
+                        <disposition>none</disposition>
+                        <dkim>fail</dkim>
+                        <spf>pass</spf>
+                    </policy_evaluated>
+                </row>
+                <identifiers><header_from>example.com</header_from></identifiers>
+                <auth_results>
+                    <spf><result>pass</result></spf>
+                    <dkim><result>fail</result></dkim>
+                </auth_results>
+            </record>
+        </feedback>"""
+        
+        with patch('backend.app.services.dmarc_service.es_service') as mock_es:
+            mock_es.index_document.return_value = {"result": "created"}
+            
+            # Process the report
+            report_id = service.ingest_report(xml_with_known_ips, "test_customer")
+            
+            # Verify report was processed
+            assert report_id is not None
+            assert mock_es.index_document.called
+            
+            # Get the document that was indexed
+            call_args = mock_es.index_document.call_args
+            report_doc = call_args[0][2]  # Third argument is the document
+            
+            # Verify services were identified correctly
+            records = report_doc["records"]
+            assert len(records) == 2
+            assert records[0]["third_party_service"] == "Google Workspace"
+            assert records[1]["third_party_service"] == "Mailchimp"

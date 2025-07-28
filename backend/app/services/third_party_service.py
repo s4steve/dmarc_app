@@ -52,72 +52,91 @@ class ThirdPartyServiceIdentifier:
                 domain_patterns=["*.constantcontact.com", "*.ctctcdn.com"],
                 reverse_dns_patterns=["*.constantcontact.com"],
                 configuration_instructions="Add 'include:spf.constantcontact.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Hubspot",
+                ip_ranges=["209.62.12.0/24", "208.85.238.0/24"],
+                domain_patterns=["*.hubspot.com", "*.hs-sites.com"],
+                reverse_dns_patterns=["*.hubspot.com"],
+                configuration_instructions="Add 'include:_spf.hubspot.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Klaviyo",
+                ip_ranges=["50.31.156.0/24", "198.2.185.0/24"],
+                domain_patterns=["*.klaviyo.com", "*.klaviyomail.com"],
+                reverse_dns_patterns=["*.klaviyo.com"],
+                configuration_instructions="Add 'include:spf.klaviyo.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Campaign Monitor",
+                ip_ranges=["103.47.147.0/24", "103.47.148.0/24"],
+                domain_patterns=["*.campaignmonitor.com", "*.createsend.com"],
+                reverse_dns_patterns=["*.campaignmonitor.com"],
+                configuration_instructions="Add 'include:cmail1.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Mandrill/Mailchimp Transactional",
+                ip_ranges=["198.2.128.0/24", "198.2.129.0/24"],
+                domain_patterns=["*.mandrillapp.com"],
+                reverse_dns_patterns=["*.mandrillapp.com"],
+                configuration_instructions="Add 'include:spf.mandrillapp.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Postmark",
+                ip_ranges=["50.31.156.6/32", "50.31.156.77/32"],
+                domain_patterns=["*.postmarkapp.com"],
+                reverse_dns_patterns=["*.postmarkapp.com"],
+                configuration_instructions="Add 'include:spf.postmarkapp.com' to your SPF record"
+            ),
+            ThirdPartyService(
+                service_name="Salesforce Marketing Cloud",
+                ip_ranges=["136.147.0.0/16", "199.21.137.0/24"],
+                domain_patterns=["*.exacttarget.com", "*.salesforce.com"],
+                reverse_dns_patterns=["*.exacttarget.com", "*.salesforce.com"],
+                configuration_instructions="Add 'include:exacttarget.com' to your SPF record"
             )
         ]
     
-    async def initialize_services(self):
+    def initialize_services(self):
         for service in self.known_services:
             service_id = str(uuid.uuid4())
             service_doc = service.dict()
-            await es_service.index_document("services", service_id, service_doc)
+            es_service.index_document("services", service_id, service_doc)
     
-    async def identify_service_by_ip(self, ip_address: str) -> Optional[str]:
+    def identify_service_by_ip(self, ip_address: str) -> Optional[str]:
         try:
             ip_obj = ipaddress.ip_address(ip_address)
             
-            query = {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"is_active": True}}
-                        ]
-                    }
-                }
-            }
-            
-            result = await es_service.search_documents("services", query)
-            
-            for hit in result["hits"]["hits"]:
-                service = hit["_source"]
-                for ip_range in service.get("ip_ranges", []):
+            # First check against our known services in memory for better performance
+            for service in self.known_services:
+                for ip_range in service.ip_ranges:
                     try:
                         network = ipaddress.ip_network(ip_range, strict=False)
                         if ip_obj in network:
-                            return service["service_name"]
+                            return service.service_name
                     except ValueError:
                         continue
             
-            reverse_dns_service = await self._identify_by_reverse_dns(ip_address)
+            # Then check reverse DNS
+            reverse_dns_service = self._identify_by_reverse_dns(ip_address)
             if reverse_dns_service:
                 return reverse_dns_service
             
-            return None
+            return "unknown"
             
         except ValueError:
-            return None
+            return "unknown"
     
-    async def _identify_by_reverse_dns(self, ip_address: str) -> Optional[str]:
+    def _identify_by_reverse_dns(self, ip_address: str) -> Optional[str]:
         try:
             hostname = socket.gethostbyaddr(ip_address)[0]
             
-            query = {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"is_active": True}}
-                        ]
-                    }
-                }
-            }
-            
-            result = await es_service.search_documents("services", query)
-            
-            for hit in result["hits"]["hits"]:
-                service = hit["_source"]
-                for pattern in service.get("reverse_dns_patterns", []):
+            # Check against our known services in memory
+            for service in self.known_services:
+                for pattern in service.reverse_dns_patterns:
                     pattern_clean = pattern.replace("*.", "")
                     if pattern_clean in hostname:
-                        return service["service_name"]
+                        return service.service_name
             
             return None
             
@@ -126,13 +145,13 @@ class ThirdPartyServiceIdentifier:
         except Exception:
             return None
     
-    async def add_custom_service(self, service: ThirdPartyService) -> str:
+    def add_custom_service(self, service: ThirdPartyService) -> str:
         service_id = str(uuid.uuid4())
         service_doc = service.dict()
-        await es_service.index_document("services", service_id, service_doc)
+        es_service.index_document("services", service_id, service_doc)
         return service_id
     
-    async def get_all_services(self) -> List[Dict[str, Any]]:
+    def get_all_services(self) -> List[Dict[str, Any]]:
         query = {
             "query": {
                 "term": {"is_active": True}
@@ -142,7 +161,7 @@ class ThirdPartyServiceIdentifier:
             ]
         }
         
-        result = await es_service.search_documents("services", query)
+        result = es_service.search_documents("services", query)
         services = []
         for hit in result["hits"]["hits"]:
             service_data = hit["_source"]
@@ -151,16 +170,16 @@ class ThirdPartyServiceIdentifier:
         
         return services
     
-    async def update_service(self, service_id: str, service_data: Dict[str, Any]) -> bool:
+    def update_service(self, service_id: str, service_data: Dict[str, Any]) -> bool:
         try:
-            current_service = await es_service.get_document("services", service_id)
+            current_service = es_service.get_document("services", service_id)
             if not current_service:
                 return False
             
             updated_data = current_service["_source"]
             updated_data.update(service_data)
             
-            await es_service.index_document("services", service_id, updated_data)
+            es_service.index_document("services", service_id, updated_data)
             return True
         except Exception:
             return False

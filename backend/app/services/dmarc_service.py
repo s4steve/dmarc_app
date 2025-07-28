@@ -12,9 +12,12 @@ class DMARCService:
             report = dmarc_parser.parse_xml_report(xml_content, customer_id)
             report_id = str(uuid.uuid4())
             
+            # Identify third-party services for each record
             for record in report.records:
-                # Skip third-party service identification for now
-                if not hasattr(record, 'third_party_service') or record.third_party_service is None:
+                if record.source_ip:
+                    identified_service = third_party_service_identifier.identify_service_by_ip(record.source_ip)
+                    record.third_party_service = identified_service
+                else:
                     record.third_party_service = "unknown"
             
             report_doc = report.dict()

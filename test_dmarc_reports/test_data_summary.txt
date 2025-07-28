@@ -1,0 +1,35 @@
+DMARC Test Data Summary
+==================================================
+
+Domain: company.org
+Generated: 2025-07-28 07:52:45
+Total Reports: 3
+Total Emails: 7,047
+
+Legitimate Email Service Providers:
+----------------------------------------
+  mailchimp.com             ~ 1,409 emails (95% auth rate)
+  sendgrid.net              ~ 1,057 emails (90% auth rate)
+  amazonses.com             ~   845 emails (88% auth rate)
+  google.com                ~ 1,268 emails (92% auth rate)
+  outlook.com               ~   704 emails (85% auth rate)
+  constantcontact.com       ~   563 emails (82% auth rate)
+  hubspot.com               ~   493 emails (87% auth rate)
+
+Suspicious/Malicious Senders:
+----------------------------------------
+  phishing-attempt.tk       ~   211 emails (2% auth rate)
+  suspicious-domain.ru      ~   140 emails (5% auth rate)
+  fake-bank-alerts.ml       ~   140 emails (1% auth rate)
+  spoofed-company.ga        ~   211 emails (3% auth rate)
+
+Expected Authentication Statistics:
+----------------------------------------
+  Expected overall authentication pass rate: ~81.0%
+  Expected authentication failure rate: ~19.0%
+
+Files Generated:
+----------------------------------------
+  test_report_1_516447.xml.gz (2,791 emails)
+  test_report_2_258173.xml.gz (2,494 emails)
+  test_report_3_103606.xml.gz (1,762 emails)

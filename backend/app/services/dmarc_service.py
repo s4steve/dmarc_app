@@ -4,6 +4,7 @@ from ..models.dmarc import DMARCReport, DMARCReportSummary
 from .elasticsearch import es_service
 from .dmarc_parser import dmarc_parser
 from .third_party_service import third_party_service_identifier
+from ..utils.sanitizer import InputSanitizer
 import uuid
 
 class DMARCService:
@@ -27,22 +28,33 @@ class DMARCService:
         except Exception as e:
             raise ValueError(f"Failed to ingest DMARC report: {str(e)}")
     
-    def get_reports_summary(self, customer_id: str, days: int = 7) -> DMARCReportSummary:
+    def get_reports_summary(self, customer_id: str, days: int = 7, domain: Optional[str] = None) -> DMARCReportSummary:
+        # Sanitize and validate inputs
+        days = InputSanitizer.validate_integer_range(days, 1, 365, 7, "days")
+        domain = InputSanitizer.sanitize_domain(domain) if domain else None
+        
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
+        
+        # Build the base query conditions with safe field references
+        must_conditions = [
+            {"term": {"customer_id.keyword": customer_id}},
+            {"range": {
+                "metadata.date_range_begin": {
+                    "gte": start_date.isoformat(),
+                    "lte": end_date.isoformat()
+                }
+            }}
+        ]
+        
+        # Add domain filter if specified (using .keyword for exact match)
+        if domain:
+            must_conditions.append({"term": {"policy.domain.keyword": domain}})
         
         query = {
             "query": {
                 "bool": {
-                    "must": [
-                        {"term": {"customer_id": customer_id}},
-                        {"range": {
-                            "metadata.date_range_begin": {
-                                "gte": start_date.isoformat(),
-                                "lte": end_date.isoformat()
-                            }
-                        }}
-                    ]
+                    "must": must_conditions
                 }
             },
             "aggs": {
@@ -115,10 +127,22 @@ class DMARCService:
             top_services=top_services
         )
     
-    def get_reports_by_customer(self, customer_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_reports_by_customer(self, customer_id: str, limit: int = 100, domain: Optional[str] = None) -> List[Dict[str, Any]]:
+        # Sanitize and validate inputs
+        limit = InputSanitizer.validate_integer_range(limit, 1, 1000, 100, "limit")
+        domain = InputSanitizer.sanitize_domain(domain) if domain else None
+        
+        # Build the base query conditions with sanitized inputs
+        must_conditions = [{"term": {"customer_id.keyword": customer_id}}]
+        
+        if domain:
+            must_conditions.append({"term": {"policy.domain.keyword": domain}})
+        
         query = {
             "query": {
-                "term": {"customer_id": customer_id}
+                "bool": {
+                    "must": must_conditions
+                }
             },
             "sort": [
                 {"processed_at": {"order": "desc"}}
@@ -134,22 +158,33 @@ class DMARCService:
         
         return reports
     
-    def get_time_series_data(self, customer_id: str, days: int = 30) -> List[Dict[str, Any]]:
+    def get_time_series_data(self, customer_id: str, days: int = 30, domain: Optional[str] = None) -> List[Dict[str, Any]]:
+        # Sanitize and validate inputs
+        days = InputSanitizer.validate_integer_range(days, 1, 365, 30, "days")
+        domain = InputSanitizer.sanitize_domain(domain) if domain else None
+        
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
+        
+        # Build the base query conditions with sanitized inputs
+        must_conditions = [
+            {"term": {"customer_id.keyword": customer_id}},
+            {"range": {
+                "metadata.date_range_begin": {
+                    "gte": start_date.isoformat(),
+                    "lte": end_date.isoformat()
+                }
+            }}
+        ]
+        
+        # Add domain filter if specified (using .keyword for exact match)
+        if domain:
+            must_conditions.append({"term": {"policy.domain.keyword": domain}})
         
         query = {
             "query": {
                 "bool": {
-                    "must": [
-                        {"term": {"customer_id": customer_id}},
-                        {"range": {
-                            "metadata.date_range_begin": {
-                                "gte": start_date.isoformat(),
-                                "lte": end_date.isoformat()
-                            }
-                        }}
-                    ]
+                    "must": must_conditions
                 }
             },
             "aggs": {

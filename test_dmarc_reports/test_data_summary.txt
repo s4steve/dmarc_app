@@ -1,27 +1,27 @@
 DMARC Test Data Summary
 ==================================================
 
-Domain: company.org
-Generated: 2025-07-28 07:52:45
-Total Reports: 3
-Total Emails: 7,047
+Domain: sequencestack.com
+Generated: 2025-07-28 14:33:19
+Total Reports: 5
+Total Emails: 10,328
 
 Legitimate Email Service Providers:
 ----------------------------------------
-  mailchimp.com             ~ 1,409 emails (95% auth rate)
-  sendgrid.net              ~ 1,057 emails (90% auth rate)
-  amazonses.com             ~   845 emails (88% auth rate)
-  google.com                ~ 1,268 emails (92% auth rate)
-  outlook.com               ~   704 emails (85% auth rate)
-  constantcontact.com       ~   563 emails (82% auth rate)
-  hubspot.com               ~   493 emails (87% auth rate)
+  mailchimp.com             ~ 2,065 emails (95% auth rate)
+  sendgrid.net              ~ 1,549 emails (90% auth rate)
+  amazonses.com             ~ 1,239 emails (88% auth rate)
+  google.com                ~ 1,859 emails (92% auth rate)
+  outlook.com               ~ 1,032 emails (85% auth rate)
+  constantcontact.com       ~   826 emails (82% auth rate)
+  hubspot.com               ~   722 emails (87% auth rate)
 
 Suspicious/Malicious Senders:
 ----------------------------------------
-  phishing-attempt.tk       ~   211 emails (2% auth rate)
-  suspicious-domain.ru      ~   140 emails (5% auth rate)
-  fake-bank-alerts.ml       ~   140 emails (1% auth rate)
-  spoofed-company.ga        ~   211 emails (3% auth rate)
+  phishing-attempt.tk       ~   309 emails (2% auth rate)
+  suspicious-domain.ru      ~   206 emails (5% auth rate)
+  fake-bank-alerts.ml       ~   206 emails (1% auth rate)
+  spoofed-company.ga        ~   309 emails (3% auth rate)
 
 Expected Authentication Statistics:
 ----------------------------------------
@@ -30,6 +30,8 @@ Expected Authentication Statistics:
 
 Files Generated:
 ----------------------------------------
-  test_report_1_516447.xml.gz (2,791 emails)
-  test_report_2_258173.xml.gz (2,494 emails)
-  test_report_3_103606.xml.gz (1,762 emails)
+  test_report_1_701628.xml.gz (2,116 emails)
+  test_report_2_846190.xml.gz (2,000 emails)
+  test_report_3_254940.xml.gz (2,009 emails)
+  test_report_4_144634.xml.gz (2,148 emails)
+  test_report_5_107240.xml.gz (2,055 emails)

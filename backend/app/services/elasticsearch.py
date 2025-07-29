@@ -6,7 +6,12 @@ from ..core.config import settings
 
 class ElasticsearchService:
     def __init__(self):
-        self.client = Elasticsearch([settings.ELASTICSEARCH_URL])
+        self.client = Elasticsearch(
+            [settings.ELASTICSEARCH_URL],
+            basic_auth=(settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD),
+            verify_certs=False,  # Since we're not using SSL in development
+            ssl_show_warn=False
+        )
         self.index_prefix = settings.ELASTICSEARCH_INDEX_PREFIX
         
     def create_indices(self):
@@ -106,12 +111,25 @@ class ElasticsearchService:
         index_name = f"{self.index_prefix}-services"
         mapping = {
             "properties": {
-                "service_name": {"type": "keyword"},
+                "service_name": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
                 "ip_ranges": {"type": "keyword"},
                 "domain_patterns": {"type": "keyword"},
                 "reverse_dns_patterns": {"type": "keyword"},
                 "configuration_instructions": {"type": "text"},
-                "is_active": {"type": "boolean"}
+                "documentation": {"type": "text"},
+                "setup_guide": {"type": "text"},
+                "troubleshooting": {"type": "text"},
+                "is_active": {"type": "boolean"},
+                "created_at": {"type": "date"},
+                "updated_at": {"type": "date"}
             }
         }
         return index_name, mapping
@@ -142,5 +160,27 @@ class ElasticsearchService:
     def delete_document(self, index_suffix: str, doc_id: str):
         index_name = f"{self.index_prefix}-{index_suffix}"
         return self.client.delete(index=index_name, id=doc_id)
+    
+    def recreate_services_index(self):
+        """Recreate the services index with the correct mapping"""
+        index_name = f"{self.index_prefix}-services"
+        
+        # Delete the index if it exists
+        if self.client.indices.exists(index=index_name):
+            self.client.indices.delete(index=index_name)
+        
+        # Create the index with the new mapping
+        _, mapping = self._get_third_party_services_index()
+        self.client.indices.create(
+            index=index_name,
+            body={
+                "mappings": mapping,
+                "settings": {
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0,
+                    "refresh_interval": "1s"
+                }
+            }
+        )
 
 es_service = ElasticsearchService()

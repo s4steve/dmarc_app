@@ -1,6 +1,7 @@
 import socket
 import ipaddress
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from ..models.dmarc import ThirdPartyService
 from .elasticsearch import es_service
 import uuid
@@ -97,10 +98,13 @@ class ThirdPartyServiceIdentifier:
             )
         ]
     
-    def initialize_services(self):
+    async def initialize_services(self):
         for service in self.known_services:
             service_id = str(uuid.uuid4())
             service_doc = service.dict()
+            # Add timestamps
+            service_doc["created_at"] = datetime.utcnow().isoformat()
+            service_doc["updated_at"] = datetime.utcnow().isoformat()
             es_service.index_document("services", service_id, service_doc)
     
     def identify_service_by_ip(self, ip_address: str) -> Optional[str]:
@@ -145,32 +149,60 @@ class ThirdPartyServiceIdentifier:
         except Exception:
             return None
     
-    def add_custom_service(self, service: ThirdPartyService) -> str:
+    async def add_custom_service(self, service: ThirdPartyService) -> str:
         service_id = str(uuid.uuid4())
         service_doc = service.dict()
         es_service.index_document("services", service_id, service_doc)
         return service_id
     
-    def get_all_services(self) -> List[Dict[str, Any]]:
-        query = {
-            "query": {
-                "term": {"is_active": True}
-            },
-            "sort": [
-                {"service_name.keyword": {"order": "asc"}}
-            ]
-        }
+    async def get_all_services(self) -> List[Dict[str, Any]]:
+        try:
+            # Try with the new keyword field first
+            query = {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"term": {"is_active": True}}
+                        ]
+                    }
+                },
+                "sort": [
+                    {"service_name.keyword": {"order": "asc"}}
+                ]
+            }
+            
+            result = es_service.search_documents("services", query)
+        except Exception:
+            # Fallback to simple query without sorting if index doesn't exist yet
+            try:
+                query = {
+                    "query": {
+                        "match_all": {}
+                    }
+                }
+                result = es_service.search_documents("services", query)
+            except Exception:
+                # If no index exists, return empty list
+                return []
         
-        result = es_service.search_documents("services", query)
         services = []
         for hit in result["hits"]["hits"]:
             service_data = hit["_source"]
             service_data["id"] = hit["_id"]
             services.append(service_data)
         
+        # Sort in Python if Elasticsearch sorting failed
+        if not services:
+            return services
+            
+        try:
+            services.sort(key=lambda x: x.get("service_name", "").lower())
+        except Exception:
+            pass
+            
         return services
     
-    def update_service(self, service_id: str, service_data: Dict[str, Any]) -> bool:
+    async def update_service(self, service_id: str, service_data: Dict[str, Any]) -> bool:
         try:
             current_service = es_service.get_document("services", service_id)
             if not current_service:
@@ -178,6 +210,38 @@ class ThirdPartyServiceIdentifier:
             
             updated_data = current_service["_source"]
             updated_data.update(service_data)
+            
+            es_service.index_document("services", service_id, updated_data)
+            return True
+        except Exception:
+            return False
+    
+    async def get_service_by_id(self, service_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            result = es_service.get_document("services", service_id)
+            if result:
+                service_data = result["_source"]
+                service_data["id"] = result["_id"]
+                return service_data
+            return None
+        except Exception:
+            return None
+    
+    async def delete_service(self, service_id: str) -> bool:
+        try:
+            # Instead of actually deleting, mark as inactive
+            return self.update_service(service_id, {"is_active": False})
+        except Exception:
+            return False
+    
+    async def update_service_documentation(self, service_id: str, doc_data: Dict[str, Any]) -> bool:
+        try:
+            current_service = es_service.get_document("services", service_id)
+            if not current_service:
+                return False
+            
+            updated_data = current_service["_source"]
+            updated_data.update(doc_data)
             
             es_service.index_document("services", service_id, updated_data)
             return True

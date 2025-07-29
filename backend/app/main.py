@@ -1,8 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from .core.config import settings
 from .services.elasticsearch import es_service
+from .middleware.rate_limiter import limiter, rate_limit_exceeded_handler
+from .middleware.security_headers import SecurityHeadersMiddleware, get_security_headers_config
+from .middleware.session_middleware import SessionActivityMiddleware
+from .middleware.error_handlers import (
+    general_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    starlette_http_exception_handler
+)
 from .api import auth, dmarc, users, services, dns, alerts, configuration, notifications, analytics
 
 @asynccontextmanager
@@ -17,6 +30,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Add security middleware (order matters - security headers should be last)
+app.add_middleware(SessionActivityMiddleware)
+app.add_middleware(SecurityHeadersMiddleware, config=get_security_headers_config())
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -24,6 +45,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add global exception handlers
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(dmarc.router, prefix=f"{settings.API_V1_STR}/dmarc", tags=["dmarc"])

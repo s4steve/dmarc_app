@@ -49,4 +49,9 @@ class ThirdPartyService(BaseModel):
     domain_patterns: List[str]
     reverse_dns_patterns: List[str]
     configuration_instructions: Optional[str] = None
+    documentation: Optional[str] = None
+    setup_guide: Optional[str] = None
+    troubleshooting: Optional[str] = None
     is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

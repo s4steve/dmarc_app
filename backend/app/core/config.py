@@ -12,7 +12,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     
     ELASTICSEARCH_URL: str = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
+    ELASTICSEARCH_USERNAME: str = os.getenv("ELASTICSEARCH_USERNAME", "elastic")
+    ELASTICSEARCH_PASSWORD: str = os.getenv("ELASTICSEARCH_PASSWORD", "DmarcSecure2024!")
     ELASTICSEARCH_INDEX_PREFIX: str = "dmarc"
+    
+    # Redis settings for rate limiting and session management
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
     

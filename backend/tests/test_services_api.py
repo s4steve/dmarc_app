@@ -1,43 +1,43 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.main import app
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.dmarc import ThirdPartyService
 
 client = TestClient(app)
 
 @pytest.fixture
 def mock_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="test-user-id",
         email="test@example.com",
         customer_id="test-customer",
-        role="admin",
+        role=UserRole.ADMIN,
         full_name="Test User",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
 @pytest.fixture
 def system_admin_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="admin-user-id",
         email="admin@example.com",
         customer_id="admin-customer",
-        role="system_admin",
+        role=UserRole.SYSTEM_ADMIN,
         full_name="System Admin",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
-@pytest.fixture
-def mock_auth_headers():
-    return {"Authorization": "Bearer valid-token"}
+
 
 @pytest.fixture
 def sample_service():
@@ -60,7 +60,7 @@ class TestServicesPublicAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
-    def test_get_services_success(self, mock_get_services, mock_get_user, mock_user, sample_service, mock_auth_headers):
+    def test_get_services_success(self, mock_get_services, mock_get_user, mock_user, sample_service, auth_headers):
         """Test successful retrieval of services"""
         mock_get_user.return_value = mock_user
         mock_get_services.return_value = [sample_service]
@@ -75,7 +75,7 @@ class TestServicesPublicAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
-    def test_get_services_empty_list(self, mock_get_services, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_services_empty_list(self, mock_get_services, mock_get_user, mock_user, auth_headers):
         """Test retrieval when no services exist"""
         mock_get_user.return_value = mock_user
         mock_get_services.return_value = []
@@ -88,7 +88,7 @@ class TestServicesPublicAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
-    def test_get_services_elasticsearch_error(self, mock_get_services, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_services_elasticsearch_error(self, mock_get_services, mock_get_user, mock_user, auth_headers):
         """Test handling of Elasticsearch errors"""
         mock_get_user.return_value = mock_user
         mock_get_services.side_effect = Exception("Elasticsearch connection failed")
@@ -100,7 +100,7 @@ class TestServicesPublicAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.initialize_services')
-    def test_initialize_services_success(self, mock_initialize, mock_get_user, mock_user, mock_auth_headers):
+    def test_initialize_services_success(self, mock_initialize, mock_get_user, mock_user, auth_headers):
         """Test successful services initialization"""
         mock_get_user.return_value = mock_user
         mock_initialize.return_value = None
@@ -113,7 +113,7 @@ class TestServicesPublicAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.initialize_services')
-    def test_initialize_services_error(self, mock_initialize, mock_get_user, mock_user, mock_auth_headers):
+    def test_initialize_services_error(self, mock_initialize, mock_get_user, mock_user, auth_headers):
         """Test services initialization error handling"""
         mock_get_user.return_value = mock_user
         mock_initialize.side_effect = Exception("Initialization failed")
@@ -133,7 +133,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
-    def test_get_services_admin_success(self, mock_get_services, mock_get_user, system_admin_user, sample_service, mock_auth_headers):
+    def test_get_services_admin_success(self, mock_get_services, mock_get_user, system_admin_user, sample_service, auth_headers):
         """Test successful admin services retrieval"""
         mock_get_user.return_value = system_admin_user
         mock_get_services.return_value = [sample_service]
@@ -148,7 +148,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_service_by_id')
-    def test_get_service_details_success(self, mock_get_service, mock_get_user, system_admin_user, sample_service, mock_auth_headers):
+    def test_get_service_details_success(self, mock_get_service, mock_get_user, system_admin_user, sample_service, auth_headers):
         """Test successful service details retrieval"""
         mock_get_user.return_value = system_admin_user
         mock_get_service.return_value = sample_service
@@ -162,7 +162,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_service_by_id')
-    def test_get_service_details_not_found(self, mock_get_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_get_service_details_not_found(self, mock_get_service, mock_get_user, system_admin_user, auth_headers):
         """Test service details retrieval for non-existent service"""
         mock_get_user.return_value = system_admin_user
         mock_get_service.return_value = None
@@ -174,7 +174,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service')
-    def test_update_service_success(self, mock_update_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_service_success(self, mock_update_service, mock_get_user, system_admin_user, auth_headers):
         """Test successful service update"""
         mock_get_user.return_value = system_admin_user
         mock_update_service.return_value = True
@@ -197,7 +197,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service')
-    def test_update_service_not_found(self, mock_update_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_service_not_found(self, mock_update_service, mock_get_user, system_admin_user, auth_headers):
         """Test service update for non-existent service"""
         mock_get_user.return_value = system_admin_user
         mock_update_service.return_value = False
@@ -215,7 +215,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.delete_service')
-    def test_delete_service_success(self, mock_delete_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_delete_service_success(self, mock_delete_service, mock_get_user, system_admin_user, auth_headers):
         """Test successful service deletion"""
         mock_get_user.return_value = system_admin_user
         mock_delete_service.return_value = True
@@ -228,7 +228,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.delete_service')
-    def test_delete_service_not_found(self, mock_delete_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_delete_service_not_found(self, mock_delete_service, mock_get_user, system_admin_user, auth_headers):
         """Test service deletion for non-existent service"""
         mock_get_user.return_value = system_admin_user
         mock_delete_service.return_value = False
@@ -240,7 +240,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service_documentation')
-    def test_update_documentation_success(self, mock_update_doc, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_documentation_success(self, mock_update_doc, mock_get_user, system_admin_user, auth_headers):
         """Test successful documentation update"""
         mock_get_user.return_value = system_admin_user
         mock_update_doc.return_value = True
@@ -264,7 +264,7 @@ class TestServicesAdminAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service_documentation')
-    def test_update_documentation_service_not_found(self, mock_update_doc, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_documentation_service_not_found(self, mock_update_doc, mock_get_user, system_admin_user, auth_headers):
         """Test documentation update for non-existent service"""
         mock_get_user.return_value = system_admin_user
         mock_update_doc.return_value = False
@@ -287,7 +287,7 @@ class TestServiceCreation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.add_custom_service')
-    def test_create_service_success(self, mock_add_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_success(self, mock_add_service, mock_get_user, system_admin_user, auth_headers):
         """Test successful service creation"""
         mock_get_user.return_value = system_admin_user
         mock_add_service.return_value = "new-service-id"
@@ -313,7 +313,7 @@ class TestServiceCreation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.add_custom_service')
-    def test_create_service_minimal_data(self, mock_add_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_minimal_data(self, mock_add_service, mock_get_user, system_admin_user, auth_headers):
         """Test service creation with minimal required data"""
         mock_get_user.return_value = system_admin_user
         mock_add_service.return_value = "new-service-id"
@@ -334,7 +334,7 @@ class TestServiceCreation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.add_custom_service')
-    def test_create_service_error(self, mock_add_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_error(self, mock_add_service, mock_get_user, system_admin_user, auth_headers):
         """Test service creation error handling"""
         mock_get_user.return_value = system_admin_user
         mock_add_service.side_effect = Exception("Database error")
@@ -355,7 +355,7 @@ class TestServiceCreation:
 class TestServiceValidation:
     
     @patch('app.api.auth.get_current_active_user')
-    def test_create_service_missing_required_fields(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_missing_required_fields(self, mock_get_user, system_admin_user, auth_headers):
         """Test service creation with missing required fields"""
         mock_get_user.return_value = system_admin_user
         
@@ -370,7 +370,7 @@ class TestServiceValidation:
         assert response.status_code == 422  # Validation error
     
     @patch('app.api.auth.get_current_active_user')
-    def test_create_service_invalid_ip_range_format(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_invalid_ip_range_format(self, mock_get_user, system_admin_user, auth_headers):
         """Test service creation with invalid IP range format"""
         mock_get_user.return_value = system_admin_user
         
@@ -392,7 +392,7 @@ class TestServiceValidation:
             assert "Failed to add service" in response.json()["detail"]
     
     @patch('app.api.auth.get_current_active_user')
-    def test_create_service_empty_arrays(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_create_service_empty_arrays(self, mock_get_user, system_admin_user, auth_headers):
         """Test service creation with empty arrays"""
         mock_get_user.return_value = system_admin_user
         
@@ -413,7 +413,7 @@ class TestServiceValidation:
             assert response.status_code == 201
     
     @patch('app.api.auth.get_current_active_user')
-    def test_update_service_partial_data(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_service_partial_data(self, mock_get_user, system_admin_user, auth_headers):
         """Test service update with partial data"""
         mock_get_user.return_value = system_admin_user
         
@@ -438,7 +438,7 @@ class TestElasticsearchIndexRecreation:
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.elasticsearch.es_service.delete_index')
     @patch('app.services.elasticsearch.es_service.create_index')
-    def test_recreate_index_success(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_recreate_index_success(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, auth_headers):
         """Test successful index recreation"""
         mock_get_user.return_value = system_admin_user
         mock_delete_index.return_value = True
@@ -454,7 +454,7 @@ class TestElasticsearchIndexRecreation:
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.elasticsearch.es_service.delete_index')
     @patch('app.services.elasticsearch.es_service.create_index')  
-    def test_recreate_index_delete_error(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_recreate_index_delete_error(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, auth_headers):
         """Test index recreation with delete error"""
         mock_get_user.return_value = system_admin_user
         mock_delete_index.side_effect = Exception("Failed to delete index")
@@ -468,7 +468,7 @@ class TestElasticsearchIndexRecreation:
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.elasticsearch.es_service.delete_index')
     @patch('app.services.elasticsearch.es_service.create_index')
-    def test_recreate_index_create_error(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_recreate_index_create_error(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, auth_headers):
         """Test index recreation with create error"""
         mock_get_user.return_value = system_admin_user
         mock_delete_index.return_value = True

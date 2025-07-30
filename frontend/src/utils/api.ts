@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8007/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -145,6 +145,19 @@ export const domainAPI = {
   },
 };
 
+export interface ThirdPartyService {
+  id?: string;
+  service_name: string;
+  ip_ranges: string[];
+  domain_patterns: string[];
+  reverse_dns_patterns: string[];
+  configuration_instructions?: string;
+  documentation?: string;
+  setup_guide?: string;
+  troubleshooting?: string;
+  is_active: boolean;
+}
+
 export const servicesAPI = {
   getServices: async () => {
     const response = await api.get('/services/');
@@ -153,6 +166,50 @@ export const servicesAPI = {
   
   initializeServices: async () => {
     const response = await api.post('/services/initialize');
+    return response.data;
+  },
+};
+
+export const adminServicesAPI = {
+  getServicesAdmin: async (): Promise<ThirdPartyService[]> => {
+    const response = await api.get('/services/admin');
+    return response.data;
+  },
+  
+  getServiceDetails: async (serviceId: string): Promise<ThirdPartyService> => {
+    const response = await api.get(`/services/admin/${serviceId}`);
+    return response.data;
+  },
+  
+  updateService: async (serviceId: string, serviceData: Partial<ThirdPartyService>) => {
+    const response = await api.put(`/services/admin/${serviceId}`, serviceData);
+    return response.data;
+  },
+  
+  deleteService: async (serviceId: string) => {
+    const response = await api.delete(`/services/admin/${serviceId}`);
+    return response.data;
+  },
+  
+  addService: async (service: ThirdPartyService) => {
+    const response = await api.post('/services/', service);
+    return response.data;
+  },
+  
+  updateDocumentation: async (serviceId: string, docData: {
+    documentation: string;
+    setup_guide?: string;
+    troubleshooting?: string;
+  }) => {
+    const response = await api.post(`/services/admin/${serviceId}/documentation`, {
+      service_id: serviceId,
+      ...docData
+    });
+    return response.data;
+  },
+  
+  recreateIndex: async () => {
+    const response = await api.post('/services/admin/recreate-index');
     return response.data;
   },
 };

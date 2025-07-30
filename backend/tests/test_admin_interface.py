@@ -1,61 +1,62 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.main import app
-from app.models.user import User
+from app.models.user import User, UserRole
 
 client = TestClient(app)
 
 @pytest.fixture
 def system_admin_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="admin-user-id",
         email="admin@example.com",
         customer_id="admin-customer",
-        role="system_admin",
+        role=UserRole.SYSTEM_ADMIN,
         full_name="System Admin",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
 @pytest.fixture
 def regular_admin_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="regular-admin-id",
         email="regularadmin@example.com",
         customer_id="regular-customer",
-        role="admin",
+        role=UserRole.ADMIN,
         full_name="Regular Admin",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
 @pytest.fixture
 def regular_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="user-id",
         email="user@example.com",
         customer_id="user-customer",
-        role="user",
+        role=UserRole.READ_ONLY,
         full_name="Regular User",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
-@pytest.fixture
-def mock_auth_headers():
-    return {"Authorization": "Bearer valid-token"}
+
 
 class TestSystemAdminAccess:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
-    def test_system_admin_can_access_services_admin(self, mock_get_services, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_access_services_admin(self, mock_get_services, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can access admin services endpoint"""
         mock_get_user.return_value = system_admin_user
         mock_services = [
@@ -78,7 +79,7 @@ class TestSystemAdminAccess:
         assert data[0]["service_name"] == "Google Workspace"
     
     @patch('app.api.auth.get_current_active_user')
-    def test_regular_admin_cannot_access_services_admin(self, mock_get_user, regular_admin_user, mock_auth_headers):
+    def test_regular_admin_cannot_access_services_admin(self, mock_get_user, regular_admin_user, auth_headers):
         """Test that regular admin cannot access admin services endpoint"""
         mock_get_user.return_value = regular_admin_user
         
@@ -88,7 +89,7 @@ class TestSystemAdminAccess:
         assert "System administrator access required" in response.json()["detail"]
     
     @patch('app.api.auth.get_current_active_user')
-    def test_regular_user_cannot_access_services_admin(self, mock_get_user, regular_user, mock_auth_headers):
+    def test_regular_user_cannot_access_services_admin(self, mock_get_user, regular_user, auth_headers):
         """Test that regular user cannot access admin services endpoint"""
         mock_get_user.return_value = regular_user
         
@@ -99,7 +100,7 @@ class TestSystemAdminAccess:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_service_by_id')
-    def test_system_admin_can_get_service_details(self, mock_get_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_get_service_details(self, mock_get_service, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can get service details"""
         mock_get_user.return_value = system_admin_user
         mock_service = {
@@ -121,7 +122,7 @@ class TestSystemAdminAccess:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service')
-    def test_system_admin_can_update_service(self, mock_update_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_update_service(self, mock_update_service, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can update services"""
         mock_get_user.return_value = system_admin_user
         mock_update_service.return_value = True
@@ -143,7 +144,7 @@ class TestSystemAdminAccess:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.delete_service')
-    def test_system_admin_can_delete_service(self, mock_delete_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_delete_service(self, mock_delete_service, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can delete services"""
         mock_get_user.return_value = system_admin_user
         mock_delete_service.return_value = True
@@ -156,7 +157,7 @@ class TestSystemAdminAccess:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service_documentation')
-    def test_system_admin_can_update_documentation(self, mock_update_doc, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_update_documentation(self, mock_update_doc, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can update service documentation"""
         mock_get_user.return_value = system_admin_user
         mock_update_doc.return_value = True
@@ -180,7 +181,7 @@ class TestSystemAdminAccess:
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.elasticsearch.es_service.delete_index')
     @patch('app.services.elasticsearch.es_service.create_index')
-    def test_system_admin_can_recreate_index(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_system_admin_can_recreate_index(self, mock_create_index, mock_delete_index, mock_get_user, system_admin_user, auth_headers):
         """Test that system admin can recreate Elasticsearch index"""
         mock_get_user.return_value = system_admin_user
         mock_delete_index.return_value = True
@@ -203,7 +204,7 @@ class TestRoleBasedAccessValidation:
         assert response.status_code == 401
     
     @patch('app.api.auth.get_current_active_user')
-    def test_inactive_system_admin_cannot_access_admin_endpoints(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_inactive_system_admin_cannot_access_admin_endpoints(self, mock_get_user, system_admin_user, auth_headers):
         """Test that inactive system admin cannot access admin endpoints"""
         system_admin_user.is_active = False
         mock_get_user.return_value = system_admin_user
@@ -231,7 +232,7 @@ class TestServiceValidation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.update_service')
-    def test_update_service_with_invalid_data(self, mock_update_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_service_with_invalid_data(self, mock_update_service, mock_get_user, system_admin_user, auth_headers):
         """Test updating service with invalid data"""
         mock_get_user.return_value = system_admin_user
         mock_update_service.return_value = False  # Simulate failure
@@ -250,7 +251,7 @@ class TestServiceValidation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_service_by_id')
-    def test_get_nonexistent_service(self, mock_get_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_get_nonexistent_service(self, mock_get_service, mock_get_user, system_admin_user, auth_headers):
         """Test getting a service that doesn't exist"""
         mock_get_user.return_value = system_admin_user
         mock_get_service.return_value = None
@@ -262,7 +263,7 @@ class TestServiceValidation:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.delete_service')
-    def test_delete_nonexistent_service(self, mock_delete_service, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_delete_nonexistent_service(self, mock_delete_service, mock_get_user, system_admin_user, auth_headers):
         """Test deleting a service that doesn't exist"""
         mock_get_user.return_value = system_admin_user
         mock_delete_service.return_value = False  # Service not found
@@ -273,7 +274,7 @@ class TestServiceValidation:
         assert "Service not found" in response.json()["detail"]
     
     @patch('app.api.auth.get_current_active_user')
-    def test_update_service_with_malformed_json(self, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_update_service_with_malformed_json(self, mock_get_user, system_admin_user, auth_headers):
         """Test updating service with malformed JSON"""
         mock_get_user.return_value = system_admin_user
         
@@ -291,7 +292,7 @@ class TestAdminInterfaceIntegration:
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.third_party_service.third_party_service_identifier.get_all_services')
     @patch('app.services.third_party_service.third_party_service_identifier.add_custom_service')
-    def test_full_service_management_workflow(self, mock_add_service, mock_get_services, mock_get_user, system_admin_user, mock_auth_headers):
+    def test_full_service_management_workflow(self, mock_add_service, mock_get_services, mock_get_user, system_admin_user, auth_headers):
         """Test complete service management workflow"""
         mock_get_user.return_value = system_admin_user
         
@@ -323,7 +324,7 @@ class TestAdminInterfaceIntegration:
         assert response.json()[0]["service_name"] == "New Email Service"
     
     @patch('app.api.auth.get_current_active_user')
-    def test_access_control_across_different_endpoints(self, mock_get_user, mock_auth_headers):
+    def test_access_control_across_different_endpoints(self, mock_get_user, auth_headers):
         """Test access control is consistently applied across all admin endpoints"""
         test_users = [
             (User(id="1", email="user@test.com", role="user", customer_id="c1", is_active=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow()), 403),

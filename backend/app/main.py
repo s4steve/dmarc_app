@@ -16,7 +16,7 @@ from .middleware.error_handlers import (
     validation_exception_handler,
     starlette_http_exception_handler
 )
-from .api import auth, dmarc, users, services, dns, alerts, configuration, notifications, analytics
+from .api import auth, dmarc, users, services, dns, alerts, configuration, notifications, analytics, dns_scanner
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,6 +60,7 @@ app.include_router(alerts.router, prefix=f"{settings.API_V1_STR}/alerts", tags=[
 app.include_router(configuration.router, prefix=f"{settings.API_V1_STR}/configuration", tags=["configuration"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
+app.include_router(dns_scanner.router, prefix=f"{settings.API_V1_STR}/dns-scanner", tags=["dns-scanner"])
 
 @app.get("/")
 async def root():

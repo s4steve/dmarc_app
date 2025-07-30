@@ -3,30 +3,29 @@ import gzip
 import io
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.main import app
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.dmarc import DMARCReportSummary
 
 client = TestClient(app)
 
 @pytest.fixture
 def mock_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="test-user-id",
         email="test@example.com",
         customer_id="test-customer",
-        role="admin",
+        role=UserRole.ADMIN,
         full_name="Test User",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
-@pytest.fixture
-def mock_auth_headers():
-    return {"Authorization": "Bearer valid-token"}
+
 
 @pytest.fixture
 def sample_xml_report():
@@ -96,7 +95,7 @@ class TestDMARCReportUpload:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.ingest_report')
-    def test_upload_xml_report_success(self, mock_ingest, mock_get_user, mock_user, sample_xml_report, mock_auth_headers):
+    def test_upload_xml_report_success(self, mock_ingest, mock_get_user, mock_user, sample_xml_report, auth_headers):
         """Test successful XML report upload"""
         mock_get_user.return_value = mock_user
         mock_ingest.return_value = "report-id-123"
@@ -115,7 +114,7 @@ class TestDMARCReportUpload:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.ingest_report')
-    def test_upload_gzipped_xml_report_success(self, mock_ingest, mock_get_user, mock_user, sample_xml_report, mock_auth_headers):
+    def test_upload_gzipped_xml_report_success(self, mock_ingest, mock_get_user, mock_user, sample_xml_report, auth_headers):
         """Test successful gzipped XML report upload"""
         mock_get_user.return_value = mock_user
         mock_ingest.return_value = "report-id-456"
@@ -135,7 +134,7 @@ class TestDMARCReportUpload:
         mock_ingest.assert_called_once_with(sample_xml_report, "test-customer")
     
     @patch('app.api.auth.get_current_active_user')
-    def test_upload_invalid_file_type(self, mock_get_user, mock_user, mock_auth_headers):
+    def test_upload_invalid_file_type(self, mock_get_user, mock_user, auth_headers):
         """Test upload with invalid file type"""
         mock_get_user.return_value = mock_user
         
@@ -149,7 +148,7 @@ class TestDMARCReportUpload:
         assert "Only XML and XML.GZ files are allowed" in response.json()["detail"]
     
     @patch('app.api.auth.get_current_active_user')
-    def test_upload_corrupted_gzip_file(self, mock_get_user, mock_user, mock_auth_headers):
+    def test_upload_corrupted_gzip_file(self, mock_get_user, mock_user, auth_headers):
         """Test upload with corrupted gzip file"""
         mock_get_user.return_value = mock_user
         
@@ -164,7 +163,7 @@ class TestDMARCReportUpload:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.ingest_report')
-    def test_upload_invalid_xml_content(self, mock_ingest, mock_get_user, mock_user, mock_auth_headers):
+    def test_upload_invalid_xml_content(self, mock_ingest, mock_get_user, mock_user, auth_headers):
         """Test upload with invalid XML content"""
         mock_get_user.return_value = mock_user
         mock_ingest.side_effect = ValueError("Invalid XML format")
@@ -179,7 +178,7 @@ class TestDMARCReportUpload:
         assert "Failed to process report" in response.json()["detail"]
     
     @patch('app.api.auth.get_current_active_user')
-    def test_upload_without_file(self, mock_get_user, mock_user, mock_auth_headers):
+    def test_upload_without_file(self, mock_get_user, mock_user, auth_headers):
         """Test upload without providing a file"""
         mock_get_user.return_value = mock_user
         
@@ -200,7 +199,7 @@ class TestDMARCSummaryEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_success(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, mock_auth_headers):
+    def test_get_summary_success(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, auth_headers):
         """Test successful summary retrieval"""
         mock_get_user.return_value = mock_user
         mock_get_summary.return_value = sample_dmarc_summary
@@ -216,7 +215,7 @@ class TestDMARCSummaryEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_with_domain_filter(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, mock_auth_headers):
+    def test_get_summary_with_domain_filter(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, auth_headers):
         """Test summary with domain filter"""
         mock_get_user.return_value = mock_user
         mock_get_summary.return_value = sample_dmarc_summary
@@ -228,7 +227,7 @@ class TestDMARCSummaryEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_invalid_days_parameter(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_summary_invalid_days_parameter(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test summary with invalid days parameter"""
         mock_get_user.return_value = mock_user
         
@@ -242,7 +241,7 @@ class TestDMARCSummaryEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_service_error(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_summary_service_error(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test summary with service error"""
         mock_get_user.return_value = mock_user
         mock_get_summary.side_effect = Exception("Database connection failed")
@@ -254,7 +253,7 @@ class TestDMARCSummaryEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_default_parameters(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, mock_auth_headers):
+    def test_get_summary_default_parameters(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, auth_headers):
         """Test summary with default parameters"""
         mock_get_user.return_value = mock_user
         mock_get_summary.return_value = sample_dmarc_summary
@@ -268,7 +267,7 @@ class TestDMARCReportsEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_by_customer')
-    def test_get_reports_success(self, mock_get_reports, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_reports_success(self, mock_get_reports, mock_get_user, mock_user, auth_headers):
         """Test successful reports retrieval"""
         mock_get_user.return_value = mock_user
         sample_reports = [
@@ -295,7 +294,7 @@ class TestDMARCReportsEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_by_customer')
-    def test_get_reports_with_domain_filter(self, mock_get_reports, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_reports_with_domain_filter(self, mock_get_reports, mock_get_user, mock_user, auth_headers):
         """Test reports retrieval with domain filter"""
         mock_get_user.return_value = mock_user
         filtered_reports = [
@@ -317,7 +316,7 @@ class TestDMARCReportsEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_by_customer')
-    def test_get_reports_invalid_limit_parameter(self, mock_get_reports, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_reports_invalid_limit_parameter(self, mock_get_reports, mock_get_user, mock_user, auth_headers):
         """Test reports with invalid limit parameter"""
         mock_get_user.return_value = mock_user
         
@@ -331,7 +330,7 @@ class TestDMARCReportsEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_by_customer')
-    def test_get_reports_empty_result(self, mock_get_reports, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_reports_empty_result(self, mock_get_reports, mock_get_user, mock_user, auth_headers):
         """Test reports retrieval with empty result"""
         mock_get_user.return_value = mock_user
         mock_get_reports.return_value = []
@@ -346,7 +345,7 @@ class TestDMARCTimeSeriesEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_time_series_data')
-    def test_get_time_series_success(self, mock_get_time_series, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_time_series_success(self, mock_get_time_series, mock_get_user, mock_user, auth_headers):
         """Test successful time series data retrieval"""
         mock_get_user.return_value = mock_user
         sample_time_series = [
@@ -378,7 +377,7 @@ class TestDMARCTimeSeriesEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_time_series_data')
-    def test_get_time_series_with_domain_filter(self, mock_get_time_series, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_time_series_with_domain_filter(self, mock_get_time_series, mock_get_user, mock_user, auth_headers):
         """Test time series with domain filter"""
         mock_get_user.return_value = mock_user
         mock_get_time_series.return_value = []
@@ -390,7 +389,7 @@ class TestDMARCTimeSeriesEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_time_series_data')
-    def test_get_time_series_invalid_days_parameter(self, mock_get_time_series, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_time_series_invalid_days_parameter(self, mock_get_time_series, mock_get_user, mock_user, auth_headers):
         """Test time series with invalid days parameter"""
         mock_get_user.return_value = mock_user
         
@@ -404,7 +403,7 @@ class TestDMARCTimeSeriesEndpoint:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_time_series_data')
-    def test_get_time_series_service_error(self, mock_get_time_series, mock_get_user, mock_user, mock_auth_headers):
+    def test_get_time_series_service_error(self, mock_get_time_series, mock_get_user, mock_user, auth_headers):
         """Test time series with service error"""
         mock_get_user.return_value = mock_user
         mock_get_time_series.side_effect = Exception("Elasticsearch query failed")
@@ -429,7 +428,7 @@ class TestEdgeCasesAndErrorHandling:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.ingest_report')
-    def test_upload_extremely_large_file(self, mock_ingest, mock_get_user, mock_user, mock_auth_headers):
+    def test_upload_extremely_large_file(self, mock_ingest, mock_get_user, mock_user, auth_headers):
         """Test upload with extremely large file"""
         mock_get_user.return_value = mock_user
         mock_ingest.side_effect = MemoryError("File too large")
@@ -446,7 +445,7 @@ class TestEdgeCasesAndErrorHandling:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_get_summary_with_special_characters_in_domain(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, mock_auth_headers):
+    def test_get_summary_with_special_characters_in_domain(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, auth_headers):
         """Test summary with special characters in domain"""
         mock_get_user.return_value = mock_user
         mock_get_summary.return_value = sample_dmarc_summary
@@ -463,7 +462,7 @@ class TestEdgeCasesAndErrorHandling:
             assert response.status_code == 200
     
     @patch('app.api.auth.get_current_active_user')
-    def test_endpoints_with_non_ascii_filenames(self, mock_get_user, mock_user, mock_auth_headers):
+    def test_endpoints_with_non_ascii_filenames(self, mock_get_user, mock_user, auth_headers):
         """Test file upload with non-ASCII filenames"""
         mock_get_user.return_value = mock_user
         
@@ -480,7 +479,7 @@ class TestEdgeCasesAndErrorHandling:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_concurrent_requests_handling(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, mock_auth_headers):
+    def test_concurrent_requests_handling(self, mock_get_summary, mock_get_user, mock_user, sample_dmarc_summary, auth_headers):
         """Test handling of concurrent requests"""
         mock_get_user.return_value = mock_user
         mock_get_summary.return_value = sample_dmarc_summary
@@ -506,7 +505,7 @@ class TestEdgeCasesAndErrorHandling:
         assert len(results) == 5
     
     @patch('app.api.auth.get_current_active_user')
-    def test_malformed_gzip_headers(self, mock_get_user, mock_user, mock_auth_headers):
+    def test_malformed_gzip_headers(self, mock_get_user, mock_user, auth_headers):
         """Test handling of files with gzip extension but not gzipped content"""
         mock_get_user.return_value = mock_user
         

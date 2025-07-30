@@ -1,8 +1,11 @@
 import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DomainProvider } from './contexts/DomainContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import DNSScanner from './components/DNSScanner';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -21,11 +24,15 @@ function AppContent() {
     );
   }
 
-  return isAuthenticated ? (
-    <DomainProvider>
-      <Dashboard />
-    </DomainProvider>
-  ) : <Login />;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/dns-scanner" element={<ProtectedRoute adminOnly={true}><DNSScanner /></ProtectedRoute>} />
+      </Routes>
+    </Router>
+  );
 }
 
 function App() {

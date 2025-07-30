@@ -1,10 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.main import app
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.dmarc import DMARCReportSummary
 from app.services.dmarc_service import dmarc_service
 
@@ -12,26 +12,25 @@ client = TestClient(app)
 
 @pytest.fixture
 def mock_user():
+    now = datetime.now(timezone.utc).isoformat()
     return User(
         id="test-user-id",
         email="test@example.com",
         customer_id="test-customer",
-        role="admin",
+        role=UserRole.ADMIN,
         full_name="Test User",
         is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=now,
+        updated_at=now
     )
 
-@pytest.fixture
-def mock_auth_headers():
-    return {"Authorization": "Bearer valid-token"}
+
 
 class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_summary_with_valid_domain_filter(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_summary_with_valid_domain_filter(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test DMARC summary endpoint with valid domain filter"""
         mock_get_user.return_value = mock_user
         
@@ -63,7 +62,7 @@ class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_summary_without_domain_filter(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_summary_without_domain_filter(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test DMARC summary endpoint without domain filter"""
         mock_get_user.return_value = mock_user
         
@@ -94,7 +93,7 @@ class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_by_customer')
-    def test_reports_with_domain_filter(self, mock_get_reports, mock_get_user, mock_user, mock_auth_headers):
+    def test_reports_with_domain_filter(self, mock_get_reports, mock_get_user, mock_user, auth_headers):
         """Test DMARC reports endpoint with domain filter"""
         mock_get_user.return_value = mock_user
         
@@ -122,7 +121,7 @@ class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_time_series_data')
-    def test_time_series_with_domain_filter(self, mock_get_time_series, mock_get_user, mock_user, mock_auth_headers):
+    def test_time_series_with_domain_filter(self, mock_get_time_series, mock_get_user, mock_user, auth_headers):
         """Test DMARC time series endpoint with domain filter"""
         mock_get_user.return_value = mock_user
         
@@ -152,7 +151,7 @@ class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_summary_with_empty_domain_filter(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_summary_with_empty_domain_filter(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test DMARC summary endpoint with empty domain filter"""
         mock_get_user.return_value = mock_user
         
@@ -181,7 +180,7 @@ class TestDomainFilteringAPI:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_summary_with_invalid_domain_format(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_summary_with_invalid_domain_format(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test DMARC summary endpoint with invalid domain format"""
         mock_get_user.return_value = mock_user
         
@@ -347,7 +346,7 @@ class TestEdgeCases:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_domain_filter_with_special_characters(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_domain_filter_with_special_characters(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test domain filter with special characters"""
         mock_get_user.return_value = mock_user
         
@@ -382,7 +381,7 @@ class TestEdgeCases:
     
     @patch('app.api.auth.get_current_active_user')
     @patch('app.services.dmarc_service.dmarc_service.get_reports_summary')
-    def test_domain_filter_case_sensitivity(self, mock_get_summary, mock_get_user, mock_user, mock_auth_headers):
+    def test_domain_filter_case_sensitivity(self, mock_get_summary, mock_get_user, mock_user, auth_headers):
         """Test domain filter case sensitivity"""
         mock_get_user.return_value = mock_user
         

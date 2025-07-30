@@ -1,66 +1,50 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { 
   ChartBarIcon, 
   UserGroupIcon, 
   CogIcon, 
   ExclamationTriangleIcon,
   ServerIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  ShieldCheckIcon,
+  DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../contexts/AuthContext';
 
-interface NavigationProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
+const Navigation: React.FC = () => {
+  const { user } = useAuth();
 
-const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { id: 'dashboard', name: 'Dashboard', icon: ChartBarIcon },
-    { id: 'alerts', name: 'Alerts', icon: ExclamationTriangleIcon },
-    { id: 'dns', name: 'DNS Records', icon: ServerIcon },
-    { id: 'upload', name: 'Upload', icon: CloudArrowUpIcon },
-    { id: 'users', name: 'Users', icon: UserGroupIcon },
-    { id: 'settings', name: 'Configuration', icon: CogIcon },
+    { id: '/', name: 'Dashboard', icon: ChartBarIcon },
+    { id: '/alerts', name: 'Alerts', icon: ExclamationTriangleIcon },
+    { id: '/dns', name: 'DNS Records', icon: ServerIcon },
+    { id: '/upload', name: 'Upload', icon: CloudArrowUpIcon },
+    { id: '/users', name: 'Users', icon: UserGroupIcon },
+    { id: '/settings', name: 'Configuration', icon: CogIcon },
   ];
+
+  if (user?.is_admin) {
+    tabs.push({ id: '/dns-scanner', name: 'DNS Scanner', icon: DocumentMagnifyingGlassIcon });
+    tabs.push({ id: '/admin', name: 'System Admin', icon: ShieldCheckIcon });
+  }
 
   return (
     <nav style={{ backgroundColor: 'white', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1rem' }}>
         <div style={{ display: 'flex', gap: '2rem' }}>
           {tabs.map((tab) => (
-            <button
+            <NavLink
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              style={{
-                whiteSpace: 'nowrap',
-                padding: '1rem 0.25rem',
-                borderBottom: `2px solid ${activeTab === tab.id ? '#3B82F6' : 'transparent'}`,
-                fontWeight: '500',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                color: activeTab === tab.id ? '#2563EB' : '#6B7280',
-                backgroundColor: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = '#374151';
-                  e.currentTarget.style.borderBottomColor = '#D1D5DB';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = '#6B7280';
-                  e.currentTarget.style.borderBottomColor = 'transparent';
-                }
-              }}
+              to={tab.id}
+              className={({ isActive }) =>
+                `whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-all 
+                ${isActive ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+              }
             >
-              <tab.icon style={{ height: '1rem', width: '1rem', marginRight: '0.5rem' }} />
+              <tab.icon className="h-5 w-5 mr-2" />
               {tab.name}
-            </button>
+            </NavLink>
           ))}
         </div>
       </div>

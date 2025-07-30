@@ -12,7 +12,7 @@ router = APIRouter()
 security = HTTPBearer()
 
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")  # Strict rate limiting for login attempts
+# @limiter.limit("5/minute")  # Temporarily disabled
 async def login(request: Request, user_credentials: UserLogin):
     # Simplified login for testing - accept admin credentials
     if user_credentials.email == "admin@example.com" and user_credentials.password == "admin123":

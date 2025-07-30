@@ -282,6 +282,46 @@ class DNSService:
             record_data = hit["_source"]
             records.append(DNSRecord(**record_data))
         
+        dmarc_records = []
+        for hit in result["hits"]["hits"]:
+            record_data = hit["_source"]
+            records.append(DNSRecord(**record_data))
+        
         return records
 
 dns_service = DNSService()
+
+class DNSScanner:
+    def __init__(self, domain: str):
+        self.domain = domain
+        self.resolver = dns.resolver.Resolver()
+
+    def get_dmarc_record(self):
+        try:
+            answers = self.resolver.resolve(f"_dmarc.{self.domain}", 'TXT')
+            for rdata in answers:
+                if "v=DMARC1" in str(rdata):
+                    return str(rdata)
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            return None
+        return None
+
+    def get_spf_record(self):
+        try:
+            answers = self.resolver.resolve(self.domain, 'TXT')
+            for rdata in answers:
+                if "v=spf1" in str(rdata):
+                    return str(rdata)
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            return None
+        return None
+
+    def get_dkim_record(self, selector: str):
+        try:
+            answers = self.resolver.resolve(f"{selector}._domainkey.{self.domain}", 'TXT')
+            for rdata in answers:
+                if "v=DKIM1" in str(rdata):
+                    return str(rdata)
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            return None
+        return None

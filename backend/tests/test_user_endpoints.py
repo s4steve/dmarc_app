@@ -3,7 +3,8 @@ import asyncio
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, patch, AsyncMock
 from app.main import app
-from app.models.user import User, UserCreate, UserUpdate
+from app.models.user import User, UserCreate, UserUpdate, UserRole
+from datetime import datetime, timezone
 
 client = TestClient(app)
 
@@ -12,28 +13,14 @@ sample_user_data = {
     "id": "test-user-id",
     "email": "test@example.com",
     "full_name": "Test User",
-    "role": "admin",
+    "role": UserRole.ADMIN,
     "customer_id": "test-customer",
     "is_active": True,
-    "created_at": "2025-07-28T10:00:00",
-    "updated_at": "2025-07-28T10:00:00"
+    "created_at": datetime.now(timezone.utc).isoformat(),
+    "updated_at": datetime.now(timezone.utc).isoformat()
 }
 
-admin_token_data = {
-    "sub": "admin@example.com",
-    "customer_id": "default",
-    "role": "system_admin",
-    "user_id": "admin"
-}
 
-def get_auth_headers():
-    """Get authorization headers for testing"""
-    response = client.post("/api/v1/auth/login", json={
-        "email": "admin@example.com",
-        "password": "admin123"
-    })
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
 
 class TestUserEndpoints:
     """Test suite for user management endpoints"""

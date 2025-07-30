@@ -1,29 +1,24 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Login from './Login';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+    children: React.ReactElement;
+    adminOnly?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly }) => {
+    const { isAuthenticated, user } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
-        <div style={{ 
-          animation: 'spin 1s linear infinite', 
-          borderRadius: '50%', 
-          height: '8rem', 
-          width: '8rem', 
-          borderBottom: '2px solid #2563eb' 
-        }}></div>
-      </div>
-    );
-  }
+    if (!isAuthenticated) {
+        return <Navigate to="/login" />;
+    }
 
-  return isAuthenticated ? <>{children}</> : <Login />;
+    if (adminOnly && !user?.is_admin) {
+        return <Navigate to="/" />;
+    }
+
+    return children;
 };
 
 export default ProtectedRoute;

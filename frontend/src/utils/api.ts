@@ -214,4 +214,5 @@ export const adminServicesAPI = {
   },
 };
 
+export { api };
 export default api;

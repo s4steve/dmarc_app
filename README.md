@@ -48,7 +48,8 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 ### Infrastructure
 - **Docker**: Containerized deployment
 - **Docker Compose**: Multi-service orchestration
-- **Elasticsearch**: Clustered search and analytics
+- **Elasticsearch 8.11**: High-performance search and analytics engine
+- **Redis 7**: Session management and caching
 
 ## Quick Start
 
@@ -61,24 +62,40 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd DMARCApp
+   git clone https://github.com/s4steve/dmarc_app.git
+   cd dmarc_app
    ```
 
-2. **Start the services**
+2. **Set environment variables**
    ```bash
-   docker-compose up -d
+   export SECRET_KEY="your-secret-key-here"
    ```
 
-3. **Install frontend dependencies**
+3. **Build and start the services**
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+4. **Verify services are running**
+   ```bash
+   docker compose ps
+   ```
+
+### For Development (without Docker)
+
+1. **Install frontend dependencies**
    ```bash
    cd frontend
    npm install
+   npm start
    ```
 
-4. **Start the frontend development server**
+2. **Install backend dependencies**
    ```bash
-   npm start
+   cd backend
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
    ```
 
 ### Access Points
@@ -185,15 +202,30 @@ npm start
 ```
 
 ### Testing
+
+The project includes comprehensive test suites for both functional and security testing.
+
 ```bash
-# Backend tests
-cd backend
-pytest
+# Run all backend tests
+PYTHONPATH=. pytest tests/ -v
+
+# Run specific test categories
+pytest tests/test_alert_service.py -v      # Alert service tests
+pytest tests/test_dns_service.py -v        # DNS validation tests
+pytest tests/test_multi_tenancy.py -v      # Customer isolation tests
+pytest tests/test_security_comprehensive.py -v  # Security tests
 
 # Frontend tests
 cd frontend
 npm test
 ```
+
+#### Test Coverage
+- **Alert Service**: Failure rate detection, volume spikes, unknown senders
+- **Notification Service**: Email notifications, admin filtering, preferences
+- **DNS Service**: SPF/DKIM/DMARC validation, recommendations engine
+- **Multi-tenancy**: Customer data isolation across all services
+- **Security**: Authentication, input validation, cryptographic security
 
 ## Deployment
 

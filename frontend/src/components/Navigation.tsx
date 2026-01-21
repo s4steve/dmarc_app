@@ -24,7 +24,7 @@ const Navigation: React.FC = () => {
     { id: '/settings', name: 'Configuration', icon: CogIcon },
   ];
 
-  if (user?.is_admin) {
+  if (user?.role === 'admin' || user?.role === 'system_admin') {
     tabs.push({ id: '/dns-scanner', name: 'DNS Scanner', icon: DocumentMagnifyingGlassIcon });
     tabs.push({ id: '/admin', name: 'System Admin', icon: ShieldCheckIcon });
   }

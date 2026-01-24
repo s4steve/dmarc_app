@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DomainProvider } from './contexts/DomainContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import DNSScanner from './components/DNSScanner';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -28,8 +27,7 @@ function AppContent() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/dns-scanner" element={<ProtectedRoute adminOnly={true}><DNSScanner /></ProtectedRoute>} />
+        <Route path="/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       </Routes>
     </Router>
   );

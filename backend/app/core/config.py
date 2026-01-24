@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     ELASTICSEARCH_URL: str = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
     ELASTICSEARCH_USERNAME: str = os.getenv("ELASTICSEARCH_USERNAME", "elastic")
-    ELASTICSEARCH_PASSWORD: str = os.getenv("ELASTICSEARCH_PASSWORD", "DmarcSecure2024!")
+    ELASTICSEARCH_PASSWORD: str = os.getenv("ELASTICSEARCH_PASSWORD", "ZYww46BNtsL-X=At00dk")
     ELASTICSEARCH_INDEX_PREFIX: str = "dmarc"
     
     # Redis settings for rate limiting and session management

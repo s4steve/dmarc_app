@@ -14,15 +14,31 @@ security = HTTPBearer()
 @router.post("/login", response_model=Token)
 # @limiter.limit("5/minute")  # Temporarily disabled
 async def login(request: Request, user_credentials: UserLogin):
-    # Simplified login for testing - accept admin credentials
-    if user_credentials.email == "admin@example.com" and user_credentials.password == "admin123":
+    # Simplified login for testing - accept known credentials
+    valid_users = {
+        "admin@example.com": {
+            "password": "admin123",
+            "customer_id": "default",
+            "role": "system_admin",
+            "user_id": "admin"
+        },
+        "steve@stevewhittle.net": {
+            "password": "admin123",
+            "customer_id": "default",
+            "role": "system_admin",
+            "user_id": "steve"
+        }
+    }
+
+    user_data = valid_users.get(user_credentials.email)
+    if user_data and user_credentials.password == user_data["password"]:
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={
-                "sub": "admin@example.com",
-                "customer_id": "default",
-                "role": "system_admin",
-                "user_id": "admin"
+                "sub": user_credentials.email,
+                "customer_id": user_data["customer_id"],
+                "role": user_data["role"],
+                "user_id": user_data["user_id"]
             },
             expires_delta=access_token_expires
         )

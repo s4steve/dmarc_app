@@ -6,7 +6,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-DmarcSecure2024!}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-ZYww46BNtsL-X=At00dk}
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -18,7 +18,7 @@ services:
     networks:
       - dmarc-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -u elastic:${ELASTICSEARCH_PASSWORD:-DmarcSecure2024!} -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -u elastic:${ELASTICSEARCH_PASSWORD:-ZYww46BNtsL-X=At00dk} -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -46,7 +46,7 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=elastic
-      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-DmarcSecure2024!}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-ZYww46BNtsL-X=At00dk}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SECRET_KEY=${SECRET_KEY}

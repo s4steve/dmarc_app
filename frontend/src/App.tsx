@@ -38,7 +38,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <DomainProvider>
+        <AppContent />
+      </DomainProvider>
     </AuthProvider>
   );
 }

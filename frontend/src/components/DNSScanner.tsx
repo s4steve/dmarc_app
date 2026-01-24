@@ -36,18 +36,24 @@ const DNSScanner: React.FC = () => {
             {results && (
                 <div>
                     <h2 className="text-xl font-bold mb-2">Results for {results.domain}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="border p-4 rounded">
-                            <h3 className="font-bold">DMARC</h3>
-                            <p>{results.dmarc || 'Not found'}</p>
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="border p-4 rounded bg-white shadow-sm">
+                            <h3 className="font-bold text-blue-600 mb-2">DMARC Record</h3>
+                            <p className="text-sm font-mono bg-gray-50 p-3 rounded break-all whitespace-pre-wrap overflow-hidden">
+                                {results.dmarc || 'Not found'}
+                            </p>
                         </div>
-                        <div className="border p-4 rounded">
-                            <h3 className="font-bold">SPF</h3>
-                            <p>{results.spf || 'Not found'}</p>
+                        <div className="border p-4 rounded bg-white shadow-sm">
+                            <h3 className="font-bold text-green-600 mb-2">SPF Record</h3>
+                            <p className="text-sm font-mono bg-gray-50 p-3 rounded break-all whitespace-pre-wrap overflow-hidden">
+                                {results.spf || 'Not found'}
+                            </p>
                         </div>
-                        <div className="border p-4 rounded">
-                            <h3 className="font-bold">DKIM</h3>
-                            <p>{results.dkim || 'Not found'}</p>
+                        <div className="border p-4 rounded bg-white shadow-sm">
+                            <h3 className="font-bold text-purple-600 mb-2">DKIM Record</h3>
+                            <p className="text-sm font-mono bg-gray-50 p-3 rounded break-all whitespace-pre-wrap overflow-hidden">
+                                {results.dkim || 'Not found'}
+                            </p>
                         </div>
                     </div>
                 </div>

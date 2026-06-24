@@ -70,7 +70,7 @@ class DMARCService:
                         },
                         "passed_emails": {
                             "filter": {
-                                "term": {"records.dmarc_result": "pass"}
+                                "term": {"records.dmarc_result.keyword": "pass"}
                             },
                             "aggs": {
                                 "count": {
@@ -82,7 +82,7 @@ class DMARCService:
                         },
                         "services": {
                             "terms": {
-                                "field": "records.third_party_service",
+                                "field": "records.third_party_service.keyword",
                                 "size": 10,
                                 "missing": "unknown"
                             },
@@ -206,7 +206,7 @@ class DMARCService:
                                 },
                                 "passed_emails": {
                                     "filter": {
-                                        "term": {"records.dmarc_result": "pass"}
+                                        "term": {"records.dmarc_result.keyword": "pass"}
                                     },
                                     "aggs": {
                                         "count": {

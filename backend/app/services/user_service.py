@@ -55,11 +55,10 @@ class UserService:
         return user
     
     async def get_users_by_customer(self, customer_id: str) -> List[User]:
-        query = {
-            "query": {
-                "term": {"customer_id": customer_id}
-            }
-        }
+        if customer_id:
+            query = {"query": {"term": {"customer_id": customer_id}}}
+        else:
+            query = {"query": {"match_all": {}}}
         
         result = es_service.search_documents("users", query)
         users = []

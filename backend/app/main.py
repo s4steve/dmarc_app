@@ -20,7 +20,7 @@ from .api import auth, dmarc, users, services, dns, alerts, configuration, notif
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Skip initialization for now to get the server running
+    es_service.create_indices()
     yield
 
 app = FastAPI(

@@ -8,6 +8,9 @@ from .elasticsearch import es_service
 _DUMMY_HASH = get_password_hash("timing-equalizer")
 
 class UserService:
+    # Writes force a refresh: login and per-request auth find users via search, so creates,
+    # deactivations and deletes must be visible before we return. ("wait_for" would block
+    # up to the index's 30s refresh_interval.) User writes are rare, so the cost is fine.
     async def create_user(self, user_data: UserCreate) -> User:
         user_id = str(uuid.uuid4())
         hashed_password = get_password_hash(user_data.password)
@@ -25,7 +28,7 @@ class UserService:
             "updated_at": now
         }
         
-        es_service.index_document("users", user_id, user_doc)
+        es_service.index_document("users", user_id, user_doc, refresh="true")
         return User(**{k: v for k, v in user_doc.items() if k != "hashed_password"})
     
     async def get_user_by_email(self, email: str) -> Optional[UserInDB]:
@@ -81,12 +84,12 @@ class UserService:
         user_data.update(update_data)
         user_data["updated_at"] = datetime.utcnow().isoformat()
         
-        es_service.index_document("users", user_id, user_data)
+        es_service.index_document("users", user_id, user_data, refresh="true")
         return User(**{k: v for k, v in user_data.items() if k != "hashed_password"})
     
     async def delete_user(self, user_id: str) -> bool:
         try:
-            es_service.delete_document("users", user_id)
+            es_service.delete_document("users", user_id, refresh="true")
             return True
         except Exception:
             return False

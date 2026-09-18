@@ -41,8 +41,6 @@ async def bootstrap_admin():
         role=UserRole.SYSTEM_ADMIN,
         customer_id="default",
     ))
-    # Make the account searchable immediately instead of after the 30s refresh interval
-    es_service.client.indices.refresh(index=users_index)
     logging.getLogger("security").warning(f"Bootstrapped system admin {settings.ADMIN_EMAIL}")
 
 app = FastAPI(

@@ -1,3 +1,4 @@
+import os
 """
 Comprehensive Security Tests for DMARC Analytics Platform
 Tests for authentication, authorization, input validation, and security headers.
@@ -58,7 +59,7 @@ class TestAuthenticationSecurity:
 
     def test_expired_token_rejected(self, test_client):
         """Test that expired tokens are rejected"""
-        from jose import jwt
+        import jwt
         from datetime import datetime, timedelta
 
         expired_payload = {
@@ -113,7 +114,7 @@ class TestAuthenticationSecurity:
         # Login to get token
         login_response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
 
         if login_response.status_code == 200:
@@ -135,7 +136,7 @@ class TestInputValidationSecurity:
     def auth_headers(self, test_client):
         response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
         if response.status_code == 200:
             token = response.json()["access_token"]
@@ -314,7 +315,7 @@ class TestErrorHandlingSecurity:
     def auth_headers(self, test_client):
         response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
         if response.status_code == 200:
             token = response.json()["access_token"]
@@ -391,7 +392,7 @@ class TestSessionSecurity:
         # Login
         login_response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
 
         if login_response.status_code != 200:
@@ -421,7 +422,7 @@ class TestSessionSecurity:
         for i in range(2):
             response = test_client.post(
                 "/api/v1/auth/login",
-                json={"email": "admin@example.com", "password": "admin123"}
+                json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
             )
 
             if response.status_code == 200:
@@ -450,7 +451,7 @@ class TestRoleBasedAccessControl:
         # Login as regular user (if available)
         login_response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
 
         if login_response.status_code != 200:
@@ -510,7 +511,8 @@ class TestCryptographicSecurity:
         """Test that JWT uses a strong algorithm"""
         from backend.app.core.security import create_access_token
 
-        token = create_access_token(data={"sub": "test@example.com"})
+        with patch("backend.app.core.security.session_service.create_session"):
+            token = create_access_token(data={"sub": "test@example.com"})
 
         # Decode header to check algorithm
         import base64

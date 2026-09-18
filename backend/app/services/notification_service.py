@@ -230,7 +230,7 @@ DMARC Analytics Platform
                 'status': 'sent'
             }
             
-            await es_service.index_document("notifications", log_entry['id'], log_entry)
+            es_service.index_document("notifications", log_entry['id'], log_entry)
         except Exception as e:
             print(f"Failed to log notification: {e}")
     
@@ -253,7 +253,7 @@ DMARC Analytics Platform
         """Update notification preferences for customer"""
         try:
             # Store preferences in Elasticsearch
-            await es_service.index_document("notification_preferences", customer_id, preferences)
+            es_service.index_document("notification_preferences", customer_id, preferences)
             return True
         except Exception:
             return False

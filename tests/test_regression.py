@@ -1,3 +1,4 @@
+import os
 """
 Regression tests for bugs encountered during development
 """
@@ -73,8 +74,8 @@ class TestRegressionBugs:
             
             # Get auth token
             login_response = client.post("/api/v1/auth/login", json={
-                "email": "admin@example.com", 
-                "password": "admin123"
+                "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), 
+                "password": os.environ.get("ADMIN_PASSWORD", "")
             })
             token = login_response.json()["access_token"]
             
@@ -201,8 +202,8 @@ class TestRegressionBugs:
         start_time = time.time()
         
         response = client.post("/api/v1/auth/login", json={
-            "email": "admin@example.com",
-            "password": "admin123"
+            "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+            "password": os.environ.get("ADMIN_PASSWORD", "")
         })
         
         end_time = time.time()
@@ -270,8 +271,8 @@ class TestRegressionBugs:
         
         # Get auth token
         login_response = client.post("/api/v1/auth/login", json={
-            "email": "admin@example.com",
-            "password": "admin123"
+            "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+            "password": os.environ.get("ADMIN_PASSWORD", "")
         })
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}

@@ -1,3 +1,4 @@
+import os
 """
 Tests for Multi-Tenancy and Customer Isolation
 These tests verify that customer data is properly isolated and cannot be accessed by other customers.
@@ -167,8 +168,8 @@ class TestAlertServiceIsolation(TestMultiTenancyIsolation):
 
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc, \
              patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_dmarc.get_reports_summary = AsyncMock(return_value=mock_summary)
-            mock_es.index_document = AsyncMock()
+            mock_dmarc.get_reports_summary = Mock(return_value=mock_summary)
+            mock_es.index_document = Mock()
 
             alert = await service._check_high_failure_rate(customer_a_id)
 
@@ -181,7 +182,7 @@ class TestAlertServiceIsolation(TestMultiTenancyIsolation):
         service = AlertService()
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value={
+            mock_es.search_documents = Mock(return_value={
                 "hits": {
                     "hits": [
                         {"_source": {"customer_id": customer_a_id, "alert_type": "test"}}
@@ -231,7 +232,7 @@ class TestDNSServiceIsolation(TestMultiTenancyIsolation):
         from backend.app.services.dns_service import DNSService
 
         with patch('backend.app.services.dns_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             service = DNSService()
 
@@ -262,7 +263,7 @@ class TestDNSServiceIsolation(TestMultiTenancyIsolation):
         from backend.app.services.dns_service import DNSService
 
         with patch('backend.app.services.dns_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value={
+            mock_es.search_documents = Mock(return_value={
                 "hits": {"hits": []}
             })
 
@@ -302,7 +303,7 @@ class TestAPIEndpointIsolation(TestMultiTenancyIsolation):
             # Get valid token
             login_response = test_client.post(
                 "/api/v1/auth/login",
-                json={"email": "admin@example.com", "password": "admin123"}
+                json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
             )
 
             if login_response.status_code == 200:
@@ -322,7 +323,7 @@ class TestAPIEndpointIsolation(TestMultiTenancyIsolation):
         # This test verifies the endpoint correctly filters by customer_id
         login_response = test_client.post(
             "/api/v1/auth/login",
-            json={"email": "admin@example.com", "password": "admin123"}
+            json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "")}
         )
 
         if login_response.status_code == 200:
@@ -420,7 +421,7 @@ class TestNotificationServiceIsolation(TestMultiTenancyIsolation):
         service = NotificationService()
 
         with patch('backend.app.services.notification_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             prefs = {"email_alerts": True}
             await service.update_notification_preferences(customer_a_id, prefs)

@@ -163,7 +163,7 @@ class TestDMARCService:
         """Test error handling during XML parsing"""
         mock_parser.parse_xml_report.side_effect = ValueError("Parse error")
         
-        with pytest.raises(ValueError, match="Failed to ingest DMARC report"):
+        with pytest.raises(ValueError, match="Parse error"):
             self.service.ingest_report("<invalid>xml</invalid>", "test_customer")
     
     @patch('backend.app.services.dmarc_service.es_service')

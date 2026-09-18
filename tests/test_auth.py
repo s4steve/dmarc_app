@@ -1,3 +1,4 @@
+import os
 """
 Tests for authentication functionality
 """
@@ -13,8 +14,8 @@ class TestAuthentication:
         response = test_client.post(
             "/api/v1/auth/login",
             json={
-                "email": "admin@example.com",
-                "password": "admin123"
+                "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+                "password": os.environ.get("ADMIN_PASSWORD", "")
             }
         )
         
@@ -43,7 +44,7 @@ class TestAuthentication:
             "/api/v1/auth/login",
             json={
                 "email": "nonexistent@example.com",
-                "password": "admin123"
+                "password": os.environ.get("ADMIN_PASSWORD", "")
             }
         )
         
@@ -78,8 +79,8 @@ class TestAuthentication:
         login_response = test_client.post(
             "/api/v1/auth/login",
             json={
-                "email": "admin@example.com",
-                "password": "admin123"
+                "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+                "password": os.environ.get("ADMIN_PASSWORD", "")
             }
         )
         token = login_response.json()["access_token"]
@@ -127,7 +128,7 @@ class TestAuthentication:
     def test_token_expiration_handling(self, test_client):
         """Test handling of expired tokens"""
         # Create an expired token (this is a simplified test)
-        from jose import jwt
+        import jwt
         from datetime import datetime, timedelta
         
         expired_payload = {
@@ -153,8 +154,8 @@ class TestAuthentication:
         response = test_client.post(
             "/api/v1/auth/login",
             json={
-                "email": "admin@example.com",
-                "password": "admin123"
+                "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+                "password": os.environ.get("ADMIN_PASSWORD", "")
             }
         )
         
@@ -176,8 +177,8 @@ class TestAuthentication:
             response = test_client.post(
                 "/api/v1/auth/login",
                 json={
-                    "email": "admin@example.com",
-                    "password": "admin123"
+                    "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+                    "password": os.environ.get("ADMIN_PASSWORD", "")
                 }
             )
             results.append(response.status_code)

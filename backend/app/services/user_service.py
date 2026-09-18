@@ -5,6 +5,8 @@ from ..models.user import UserCreate, UserInDB, User, UserUpdate
 from ..core.security import get_password_hash, verify_password
 from .elasticsearch import es_service
 
+_DUMMY_HASH = get_password_hash("timing-equalizer")
+
 class UserService:
     async def create_user(self, user_data: UserCreate) -> User:
         user_id = str(uuid.uuid4())
@@ -49,6 +51,8 @@ class UserService:
     async def authenticate_user(self, email: str, password: str) -> Optional[UserInDB]:
         user = await self.get_user_by_email(email)
         if not user:
+            # Spend the same bcrypt time as a real check so response timing doesn't reveal valid emails
+            verify_password(password, _DUMMY_HASH)
             return None
         if not verify_password(password, user.hashed_password):
             return None

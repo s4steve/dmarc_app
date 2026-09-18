@@ -59,8 +59,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    setUser(null);
+    // Revoke the token server-side; clear local state even if the call fails
+    authAPI.logout().catch(() => {}).finally(() => {
+      localStorage.removeItem('access_token');
+      setUser(null);
+    });
   };
 
   const value = {

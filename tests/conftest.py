@@ -160,8 +160,8 @@ def test_client():
 def authenticated_headers(test_client):
     """Get authentication headers for test requests"""
     login_data = {
-        "email": "admin@example.com",
-        "password": "admin123"
+        "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+        "password": os.environ.get("ADMIN_PASSWORD", "")
     }
     response = test_client.post("/api/v1/auth/login", json=login_data)
     if response.status_code == 200:

@@ -146,25 +146,142 @@ The platform provides comprehensive API documentation through FastAPI's automati
 - **ReDoc**: http://localhost:8000/redoc
 - **OpenAPI JSON**: http://localhost:8000/api/v1/openapi.json
 
-### Key API Endpoints
+### Conventions
 
-#### Authentication
-- `POST /api/v1/auth/login` - User authentication
-- `GET /api/v1/users/me` - Get current user profile
+- **Base URL:** `http://localhost:8000/api/v1`. All paths below are relative to it.
+- **Authentication:** get a token from `POST /auth/login` and send it as `Authorization: Bearer <token>`. Tokens expire after 30 minutes. `POST /auth/logout` revokes a token immediately.
+- **Roles:**
 
-#### DMARC Analytics
-- `GET /api/v1/dmarc/summary` - Get report summary with metrics
-- `GET /api/v1/dmarc/time-series` - Historical trend data
-- `POST /api/v1/dmarc/upload-report` - Upload XML reports
+  | Role | Can do |
+  |---|---|
+  | `read_only` | Read data for their own customer (the **user** level in the tables below) |
+  | `admin` | Everything a user can, plus manage users, notifications and the DNS scanner for their own customer |
+  | `system_admin` | Everything, across all customers, including the third-party service catalog shared by every customer |
 
-#### DNS Management
-- `POST /api/v1/dns/check/{domain}` - Validate DNS records
-- `GET /api/v1/dns/records` - Get customer DNS records
+- **Tenancy:** data is always scoped to the caller's `customer_id`, which comes from their user record. There's no way to query another customer's data by passing an ID.
+- **Errors:** JSON with `detail` (and `message`) fields, e.g. `{"detail": "Not enough permissions", ...}`. Unexpected 500s return a generic message; details go to the server log only.
+- **Common status codes:** `401` missing, invalid, expired or revoked token · `403` role too low · `404` not found (also returned for another customer's resources) · `413` payload too large · `422` request validation failed · `429` rate limited (see the `Retry-After` header).
 
-#### Alerts & Notifications
-- `GET /api/v1/alerts/` - Retrieve security alerts
-- `POST /api/v1/alerts/check` - Trigger alert checks
-- `POST /api/v1/notifications/test-alert` - Send test notification
+### Quick example
+
+```bash
+API=http://localhost:8000/api/v1
+
+# Log in
+TOKEN=$(curl -s -X POST $API/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@example.com","password":"<your password>"}' | jq -r .access_token)
+
+# Upload a report, then read the summary for the last 30 days
+curl -H "Authorization: Bearer $TOKEN" -F "file=@report.xml.gz" $API/dmarc/upload-report
+curl -H "Authorization: Bearer $TOKEN" "$API/dmarc/summary?days=30"
+
+# Log out (revokes the token)
+curl -X POST -H "Authorization: Bearer $TOKEN" $API/auth/logout
+```
+
+### Endpoint reference
+
+**Auth** in the tables below is the minimum role needed: **public** (no token), **user** (any logged-in user), **admin**, or **system_admin**.
+
+#### Authentication — `/auth`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/login` | public | Body `{"email", "password"}`. Returns `{"access_token", "token_type": "bearer"}`. Rate limited to 5/min per IP. |
+| POST | `/auth/logout` | user | Revokes the token used for this request. 10/min. |
+| POST | `/auth/logout-all` | user | Revokes every active session for the current user. 5/min. |
+| GET | `/auth/sessions` | user | Lists the caller's active sessions (`created_at`, `last_accessed`, `ip_address`, `user_agent`). 20/min. |
+
+#### Users — `/users`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/users/me` | user | The current user's profile. |
+| GET | `/users/` | admin | Users in the caller's customer (all users for a `system_admin`). |
+| POST | `/users/` | admin | Create a user. Body: `email`, `password` (12-72 chars), `customer_id`, `role` (`read_only` default, `admin`, `system_admin`), `full_name`, `is_active`. A tenant admin always creates users in their own customer and can't assign `system_admin`. |
+| PUT | `/users/{user_id}` | admin | Partial update: `email`, `full_name`, `role`, `is_active`. Setting `is_active: false` cuts off the user's existing tokens immediately. Tenant admins can't touch `system_admin` accounts or grant that role. |
+| DELETE | `/users/{user_id}` | admin | Delete a user. You can't delete yourself. |
+
+#### DMARC reports — `/dmarc`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/dmarc/upload-report` | user | Multipart upload, field `file`, a `.xml` or `.xml.gz` aggregate report. Max 10 MB uploaded / 50 MB decompressed. Documents with a `DOCTYPE` are rejected. Returns `{"message", "report_id"}`. 5/min per session. |
+| GET | `/dmarc/summary` | user | Totals, pass/fail counts, `pass_rate` and top sending services. Query: `days` (1-365, default 7), `domain` (optional). 30/min per session. |
+| GET | `/dmarc/reports` | user | Raw reports, newest first. Query: `limit` (1-1000, default 100), `domain`. |
+| GET | `/dmarc/time-series` | user | Daily totals and pass rate. Query: `days` (1-365, default 30), `domain`. |
+
+#### Analytics — `/analytics`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/analytics/detailed-report` | user | Detailed metrics for the period. Query: `days` (1-365, default 30). |
+| GET | `/analytics/export/{format}` | user | `format` is `json`, `csv` or `pdf`. Query: `days`. **Only `json` works at the moment**; `csv` and `pdf` return 500 because the export functions aren't implemented yet. |
+
+#### Domains — `/domains`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/domains/` | user | The customer's monitored domains. |
+| POST | `/domains/` | user | Body `{"name": "example.com"}`. The name must be a valid DNS name. |
+| DELETE | `/domains/{domain_id}` | user | Remove a domain. |
+
+> Domains are currently held in memory, so they're lost when the API restarts.
+
+#### DNS — `/dns` and `/dns-scanner`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/dns/check/{domain}` | user | Looks up and validates SPF, DMARC, DKIM and MX records, stores the results, and returns them with an `overall_status` and recommendations. |
+| GET | `/dns/records` | user | Previously checked DNS records for the customer. |
+| POST | `/dns-scanner/scan-domain/` | admin | Body `{"domain": "example.com"}`. Returns the live DMARC, SPF and DKIM (`_dkim` selector) records. |
+
+#### Alerts — `/alerts`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/alerts/` | user | Alerts for the customer. Query: `days` (1-30, default 7). |
+| POST | `/alerts/check` | user | Runs the alert checks now (high failure rate, volume spike, unknown senders) and returns any new alerts. |
+| POST | `/alerts/{alert_id}/resolve` | user | Marks an alert resolved. Returns 404 for alerts that belong to another customer. |
+
+#### Notifications — `/notifications`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/notifications/preferences` | admin | The customer's notification settings. |
+| PUT | `/notifications/preferences` | admin | Body: `email_alerts`, `weekly_summary`, `dns_change_alerts`, `high_severity_only` (booleans) and `alert_threshold: {"failure_rate": 0-100, "volume_spike": >0}`. Unknown fields are rejected. |
+| POST | `/notifications/test-alert` | admin | Emails a test alert to the customer's admins. |
+
+#### Configuration guidance — `/configuration`
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/configuration/services` | user | Setup instructions for every supported email service. |
+| GET | `/configuration/services/{service_name}` | user | Instructions for one service. 404 if it's unknown. |
+| GET | `/configuration/guidance/spf` | user | General SPF guidance. |
+| GET | `/configuration/guidance/dmarc` | user | DMARC policy guidance. |
+| GET | `/configuration/guidance/dkim` | user | DKIM guidance. |
+
+#### Third-party services — `/services`
+
+The catalog of known sending services (used to label report sources) is shared by all customers, so only a `system_admin` can change it.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/services/` | user | All active services. |
+| POST | `/services/` | system_admin | Add a service. Body: `service_name`, `ip_ranges`, `domain_patterns`, `reverse_dns_patterns` (lists), plus optional `configuration_instructions`, `documentation`, `setup_guide`, `troubleshooting`, `is_active`. |
+| POST | `/services/initialize` | system_admin | Load the built-in default services. |
+| GET | `/services/admin` | system_admin | All services, with full details. |
+| GET | `/services/admin/{service_id}` | system_admin | One service. |
+| PUT | `/services/admin/{service_id}` | system_admin | Partial update of the fields listed for `POST /services/`. |
+| DELETE | `/services/admin/{service_id}` | system_admin | Delete a service. |
+| POST | `/services/admin/{service_id}/documentation` | system_admin | Body: `service_id`, `documentation`, optional `setup_guide` and `troubleshooting`. The path ID is the one that's updated. |
+| POST | `/services/admin/recreate-index` | system_admin | **Destructive:** drops and rebuilds the services index, then reloads the defaults. Custom services are lost. |
+
+#### Health checks (public)
+
+`GET /health` (at the server root, not under `/api/v1`), plus `GET /dmarc/health`, `/dns/health`, `/alerts/health`, `/configuration/health`, `/notifications/health` and `/analytics/health`. Each returns `{"status": "healthy", ...}`.
 
 ## Usage Guide
 

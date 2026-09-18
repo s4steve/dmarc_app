@@ -1,12 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
-from slowapi import Limiter, _rate_limit_exceeded_handler
+import logging
 from slowapi.errors import RateLimitExceeded
 from .core.config import settings
 from .services.elasticsearch import es_service
+from .services.user_service import user_service
+from .models.user import UserCreate, UserRole
 from .middleware.rate_limiter import limiter, rate_limit_exceeded_handler
 from .middleware.security_headers import SecurityHeadersMiddleware, get_security_headers_config
 from .middleware.session_middleware import SessionActivityMiddleware
@@ -21,7 +24,24 @@ from .api import auth, dmarc, users, services, dns, alerts, configuration, notif
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     es_service.create_indices()
+    await bootstrap_admin()
     yield
+
+async def bootstrap_admin():
+    """Create the first system admin from ADMIN_EMAIL/ADMIN_PASSWORD when no users exist"""
+    if not (settings.ADMIN_EMAIL and settings.ADMIN_PASSWORD):
+        return
+    users_index = f"{settings.ELASTICSEARCH_INDEX_PREFIX}-users"
+    if es_service.client.count(index=users_index)["count"] > 0:
+        return
+    await user_service.create_user(UserCreate(
+        email=settings.ADMIN_EMAIL,
+        password=settings.ADMIN_PASSWORD,
+        full_name="System Administrator",
+        role=UserRole.SYSTEM_ADMIN,
+        customer_id="default",
+    ))
+    logging.getLogger("security").warning(f"Bootstrapped system admin {settings.ADMIN_EMAIL}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -29,6 +49,17 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Reject oversized bodies before Starlette spools them to disk.
+# ponytail: trusts Content-Length; chunked bodies skip this, so cap body size at the reverse proxy too.
+MAX_BODY_BYTES = 11 * 1024 * 1024
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    content_length = request.headers.get("content-length", "")
+    if content_length.isdigit() and int(content_length) > MAX_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    return await call_next(request)
 
 # Add rate limiting
 app.state.limiter = limiter

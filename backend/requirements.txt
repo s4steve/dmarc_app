@@ -1,20 +1,17 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-jose[cryptography]==3.5.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-elasticsearch==8.11.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-xmltodict==0.13.0
-dnspython==2.4.2
-email-validator==2.1.0
-httpx==0.25.2
-pytest==7.4.3
-pytest-asyncio==0.21.1
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+PyJWT==2.14.0
+bcrypt==5.0.0
+python-multipart==0.0.32
+# Client major version must match the Elasticsearch server (8.x)
+elasticsearch==8.19.3
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
+xmltodict==1.0.4
+dnspython==2.8.0
+email-validator==2.3.0
+urllib3==2.8.0
 # Rate limiting and session management
-slowapi==0.1.9
-redis==5.0.1
-# Security enhancements
-python-magic==0.4.27
+slowapi==0.1.10
+redis==8.1.0

@@ -108,7 +108,7 @@ class AdvancedAnalyticsService:
         }
         
         try:
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             aggs = result.get("aggregations", {})
             
             total_emails = int(aggs.get("total_emails", {}).get("value", 0))
@@ -182,7 +182,7 @@ class AdvancedAnalyticsService:
         }
         
         try:
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             daily_buckets = result.get("aggregations", {}).get("daily_trends", {}).get("buckets", [])
             
             trends = []
@@ -286,7 +286,7 @@ class AdvancedAnalyticsService:
         }
         
         try:
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             service_buckets = result.get("aggregations", {}).get("services", {}).get("buckets", [])
             
             services = []
@@ -358,7 +358,7 @@ class AdvancedAnalyticsService:
         }
         
         try:
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             failed_sources = result.get("aggregations", {}).get("failed_sources", {}).get("buckets", [])
             
             suspicious_sources = []

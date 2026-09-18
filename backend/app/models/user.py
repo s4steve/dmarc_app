@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from enum import Enum
 
@@ -14,7 +14,8 @@ class UserBase(BaseModel):
     is_active: bool = True
 
 class UserCreate(UserBase):
-    password: str
+    # bcrypt only uses the first 72 bytes
+    password: str = Field(min_length=12, max_length=72)
     customer_id: str
 
 class UserUpdate(BaseModel):

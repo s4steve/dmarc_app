@@ -1,328 +1,100 @@
 """
-Session Management Service for secure token handling and session tracking
+Session tracking and token revocation, backed by Redis.
+
+Tokens are only ever stored as SHA-256 hashes. Revocation checks fail closed:
+if Redis is unreachable, is_token_blacklisted raises and the request is rejected.
 """
 import json
 import hashlib
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from redis import Redis
-from jose import jwt, JWTError
-from ..core.config import settings
 import logging
+from datetime import datetime, timezone
+from typing import Optional
+from redis import Redis
+from ..core.config import settings
 
 logger = logging.getLogger("security")
 
-class SessionService:
-    """Service for managing user sessions and token blacklisting"""
-    
-    def __init__(self):
-        try:
-            self.redis = Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5
-            )
-            # Test connection
-            self.redis.ping()
-            logger.info("Session service initialized with Redis connection")
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis for session management: {e}")
-            self.redis = None
-    
-    def _get_token_hash(self, token: str) -> str:
-        """Create a hash of the token for storage"""
-        return hashlib.sha256(token.encode()).hexdigest()
-    
-    def create_session(self, user_id: str, customer_id: str, token: str, expires_at: datetime) -> bool:
-        """
-        Create a new user session
-        
-        Args:
-            user_id: User identifier
-            customer_id: Customer identifier  
-            token: JWT token
-            expires_at: Token expiration time
-            
-        Returns:
-            True if session created successfully
-        """
-        if not self.redis:
-            logger.warning("Redis not available, sessions not tracked")
-            return True
-        
-        try:
-            token_hash = self._get_token_hash(token)
-            session_key = f"session:{user_id}:{token_hash}"
-            
-            session_data = {
-                "user_id": user_id,
-                "customer_id": customer_id,
-                "token_hash": token_hash,  # Store hash for reference
-                "created_at": datetime.utcnow().isoformat(),
-                "expires_at": expires_at.isoformat(),
-                "last_accessed": datetime.utcnow().isoformat(),
-                "ip_address": None,  # Will be set by middleware
-                "user_agent": None   # Will be set by middleware
-            }
-            
-            # Store session with expiration
-            ttl = int((expires_at - datetime.utcnow()).total_seconds())
-            self.redis.setex(session_key, ttl, json.dumps(session_data))
-            
-            # Add to user's active sessions set with token hash mapping
-            user_sessions_key = f"user_sessions:{user_id}"
-            self.redis.sadd(user_sessions_key, token_hash)
-            self.redis.expire(user_sessions_key, ttl)
-            
-            # Store token hash to token mapping for logout-all (with short TTL)
-            token_mapping_key = f"token_map:{token_hash}"
-            self.redis.setex(token_mapping_key, ttl, token)
-            
-            logger.info(f"Session created for user {user_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to create session: {e}")
-            return False
-    
-    def is_token_blacklisted(self, token: str) -> bool:
-        """
-        Check if a token is blacklisted
-        
-        Args:
-            token: JWT token to check
-            
-        Returns:
-            True if token is blacklisted
-        """
-        if not self.redis:
-            return False
-        
-        try:
-            token_hash = self._get_token_hash(token)
-            blacklist_key = f"blacklist:{token_hash}"
-            return bool(self.redis.exists(blacklist_key))
-        except Exception as e:
-            logger.error(f"Failed to check token blacklist: {e}")
-            return False
-    
-    def blacklist_token(self, token: str, reason: str = "logout") -> bool:
-        """
-        Add token to blacklist
-        
-        Args:
-            token: JWT token to blacklist
-            reason: Reason for blacklisting
-            
-        Returns:
-            True if successfully blacklisted
-        """
-        if not self.redis:
-            logger.warning("Redis not available, token blacklisting disabled")
-            return True
-        
-        try:
-            # Extract expiration from token
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            exp_timestamp = payload.get('exp', 0)
-            expires_at = datetime.fromtimestamp(exp_timestamp)
-            
-            # Only blacklist if token hasn't expired
-            current_time = datetime.utcnow()
-            if expires_at > current_time:
-                token_hash = self._get_token_hash(token)
-                blacklist_key = f"blacklist:{token_hash}"
-                
-                blacklist_data = {
-                    "reason": reason,
-                    "blacklisted_at": current_time.isoformat(),
-                    "expires_at": expires_at.isoformat()
-                }
-                
-                # Store until token would naturally expire (minimum 60 seconds)
-                ttl = max(int((expires_at - current_time).total_seconds()), 60)
-                self.redis.setex(blacklist_key, ttl, json.dumps(blacklist_data))
-                
-                # Remove from active sessions
-                user_id = payload.get('sub')
-                if user_id:
-                    self._remove_from_user_sessions(user_id, token_hash)
-                
-                logger.info(f"Token blacklisted for reason: {reason}")
-                return True
-            
-            return True  # Already expired
-            
-        except JWTError:
-            logger.warning("Invalid token provided for blacklisting")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to blacklist token: {e}")
-            return False
-    
-    def _remove_from_user_sessions(self, user_id: str, token_hash: str):
-        """Remove token from user's active sessions"""
-        try:
-            user_sessions_key = f"user_sessions:{user_id}"
-            self.redis.srem(user_sessions_key, token_hash)
-            
-            # Remove session data
-            session_key = f"session:{user_id}:{token_hash}"
-            self.redis.delete(session_key)
-        except Exception as e:
-            logger.error(f"Failed to remove from user sessions: {e}")
-    
-    def get_user_sessions(self, user_id: str) -> list:
-        """
-        Get all active sessions for a user
-        
-        Args:
-            user_id: User identifier
-            
-        Returns:
-            List of session information
-        """
-        if not self.redis:
-            return []
-        
-        try:
-            user_sessions_key = f"user_sessions:{user_id}"
-            token_hashes = self.redis.smembers(user_sessions_key)
-            
-            sessions = []
-            for token_hash in token_hashes:
-                session_key = f"session:{user_id}:{token_hash}"
-                session_data = self.redis.get(session_key)
-                if session_data:
-                    sessions.append(json.loads(session_data))
-            
-            return sessions
-        except Exception as e:
-            logger.error(f"Failed to get user sessions: {e}")
-            return []
-    
-    def invalidate_all_user_sessions(self, user_id: str, reason: str = "security") -> bool:
-        """
-        Invalidate all sessions for a user
-        
-        Args:
-            user_id: User identifier
-            reason: Reason for invalidation
-            
-        Returns:
-            True if successful
-        """
-        if not self.redis:
-            return True
-        
-        try:
-            user_sessions_key = f"user_sessions:{user_id}"
-            token_hashes = self.redis.smembers(user_sessions_key)
-            
-            for token_hash in token_hashes:
-                # Get the actual token from mapping
-                token_mapping_key = f"token_map:{token_hash}"
-                token = self.redis.get(token_mapping_key)
-                
-                if token:
-                    # Blacklist the actual token using the proper method
-                    self.blacklist_token(token, reason)
-                else:
-                    # Fallback: blacklist using hash (for already logged out sessions)
-                    blacklist_key = f"blacklist:{token_hash}"
-                    blacklist_data = {
-                        "reason": reason,
-                        "blacklisted_at": datetime.utcnow().isoformat(),
-                        "user_id": user_id
-                    }
-                    self.redis.setex(blacklist_key, 86400, json.dumps(blacklist_data))  # 24 hours
-                
-                # Remove session
-                session_key = f"session:{user_id}:{token_hash}"
-                self.redis.delete(session_key)
-                
-                # Remove token mapping
-                self.redis.delete(token_mapping_key)
-            
-            # Clear user sessions set
-            self.redis.delete(user_sessions_key)
-            
-            logger.info(f"All sessions invalidated for user {user_id}, reason: {reason}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to invalidate user sessions: {e}")
-            return False
-    
-    def update_session_activity(self, token: str, ip_address: str, user_agent: str) -> bool:
-        """
-        Update session activity information
-        
-        Args:
-            token: JWT token
-            ip_address: Client IP address
-            user_agent: Client user agent
-            
-        Returns:
-            True if updated successfully
-        """
-        if not self.redis:
-            return True
-        
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            user_id = payload.get('sub')
-            
-            if user_id:
-                token_hash = self._get_token_hash(token)
-                session_key = f"session:{user_id}:{token_hash}"
-                
-                session_data = self.redis.get(session_key)
-                if session_data:
-                    session = json.loads(session_data)
-                    session['last_accessed'] = datetime.utcnow().isoformat()
-                    session['ip_address'] = ip_address
-                    session['user_agent'] = user_agent
-                    
-                    # Update with same TTL
-                    ttl = self.redis.ttl(session_key)
-                    if ttl > 0:
-                        self.redis.setex(session_key, ttl, json.dumps(session))
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update session activity: {e}")
-            return False
-    
-    def cleanup_expired_sessions(self) -> int:
-        """
-        Clean up expired sessions and blacklist entries
-        
-        Returns:
-            Number of entries cleaned up
-        """
-        if not self.redis:
-            return 0
-        
-        try:
-            cleaned = 0
-            
-            # Redis automatically expires keys, but we can clean up empty sets
-            pattern = "user_sessions:*"
-            for key in self.redis.scan_iter(match=pattern):
-                if self.redis.scard(key) == 0:
-                    self.redis.delete(key)
-                    cleaned += 1
-            
-            logger.info(f"Cleaned up {cleaned} expired session entries")
-            return cleaned
-            
-        except Exception as e:
-            logger.error(f"Failed to cleanup expired sessions: {e}")
-            return 0
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
-# Global session service instance
+class SessionService:
+    def __init__(self):
+        # redis-py connects lazily, so a Redis outage at startup recovers on its own
+        self.redis = Redis.from_url(
+            settings.REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5
+        )
+
+    @staticmethod
+    def _hash(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def create_session(self, user_id: str, token: str, expires_at: datetime) -> None:
+        token_hash = self._hash(token)
+        ttl = max(int((expires_at - _now()).total_seconds()), 1)
+        session = {
+            "created_at": _now().isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "last_accessed": _now().isoformat(),
+            "ip_address": None,
+            "user_agent": None
+        }
+        pipe = self.redis.pipeline()
+        pipe.set(f"session:{user_id}:{token_hash}", json.dumps(session), ex=ttl)
+        pipe.sadd(f"user_sessions:{user_id}", token_hash)
+        # Keep the set alive as long as the newest session
+        pipe.expire(f"user_sessions:{user_id}", ttl, gt=True)
+        pipe.expire(f"user_sessions:{user_id}", ttl, nx=True)
+        pipe.execute()
+
+    def is_token_blacklisted(self, token: str) -> bool:
+        # Deliberately no try/except: a Redis failure must reject the token, not accept it
+        return bool(self.redis.exists(f"blacklist:{self._hash(token)}"))
+
+    def _revoke(self, user_id: str, token_hash: str, reason: str) -> None:
+        session_key = f"session:{user_id}:{token_hash}"
+        # Blacklist for as long as the token could still be valid
+        ttl = self.redis.ttl(session_key)
+        if ttl is None or ttl < 0:
+            ttl = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        pipe = self.redis.pipeline()
+        pipe.set(
+            f"blacklist:{token_hash}",
+            json.dumps({"reason": reason, "blacklisted_at": _now().isoformat()}),
+            ex=ttl
+        )
+        pipe.delete(session_key)
+        pipe.srem(f"user_sessions:{user_id}", token_hash)
+        pipe.execute()
+
+    def blacklist_token(self, token: str, user_id: str, reason: str = "logout") -> None:
+        self._revoke(user_id, self._hash(token), reason)
+        logger.info(f"Token revoked for {user_id}, reason: {reason}")
+
+    def invalidate_all_user_sessions(self, user_id: str, reason: str = "security") -> None:
+        for token_hash in self.redis.smembers(f"user_sessions:{user_id}"):
+            self._revoke(user_id, token_hash, reason)
+        self.redis.delete(f"user_sessions:{user_id}")
+        logger.info(f"All sessions invalidated for {user_id}, reason: {reason}")
+
+    def get_user_sessions(self, user_id: str) -> list:
+        sessions = []
+        for token_hash in self.redis.smembers(f"user_sessions:{user_id}"):
+            data = self.redis.get(f"session:{user_id}:{token_hash}")
+            if data:
+                sessions.append(json.loads(data))
+        return sessions
+
+    def update_session_activity(self, user_id: str, token: str, ip_address: Optional[str], user_agent: str) -> None:
+        session_key = f"session:{user_id}:{self._hash(token)}"
+        data = self.redis.get(session_key)
+        ttl = self.redis.ttl(session_key)
+        if not data or ttl <= 0:
+            return
+        session = json.loads(data)
+        session.update(last_accessed=_now().isoformat(), ip_address=ip_address, user_agent=user_agent)
+        self.redis.set(session_key, json.dumps(session), ex=ttl)
+
 session_service = SessionService()

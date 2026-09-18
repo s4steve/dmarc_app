@@ -264,7 +264,7 @@ class DNSService:
     async def _store_dns_record(self, record: DNSRecord):
         record_id = str(uuid.uuid4())
         record_doc = record.dict()
-        await es_service.index_document("dns", record_id, record_doc)
+        es_service.index_document("dns", record_id, record_doc)
     
     async def get_dns_records_by_customer(self, customer_id: str) -> List[DNSRecord]:
         query = {
@@ -276,7 +276,7 @@ class DNSService:
             ]
         }
         
-        result = await es_service.search_documents("dns", query)
+        result = es_service.search_documents("dns", query)
         records = []
         for hit in result["hits"]["hits"]:
             record_data = hit["_source"]

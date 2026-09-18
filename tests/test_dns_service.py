@@ -371,7 +371,7 @@ class TestDNSService:
         mock_record.dict.return_value = {"domain": "example.com", "record_type": "SPF"}
 
         with patch('backend.app.services.dns_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             await dns_service._store_dns_record(mock_record)
 
@@ -403,7 +403,7 @@ class TestDNSService:
         }
 
         with patch('backend.app.services.dns_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value=mock_response)
+            mock_es.search_documents = Mock(return_value=mock_response)
 
             records = await dns_service.get_dns_records_by_customer("test-customer")
 

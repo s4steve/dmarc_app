@@ -66,9 +66,10 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
    cd dmarc_app
    ```
 
-2. **Set environment variables**
+2. **Create `.env`** from the template and fill in every required value
    ```bash
-   export SECRET_KEY="your-secret-key-here"
+   cp .env.example .env
+   # generate each secret with: openssl rand -hex 32
    ```
 
 3. **Build and start the services**
@@ -76,6 +77,8 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
    docker compose build
    docker compose up -d
    ```
+   For live code reload during development, add the dev override:
+   `docker compose -f docker-compose.yml -f docker-compose.dev.yml up`
 
 4. **Verify services are running**
    ```bash
@@ -94,7 +97,7 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 2. **Install backend dependencies**
    ```bash
    cd backend
-   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
    uvicorn app.main:app --reload
    ```
 
@@ -102,7 +105,7 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 - **Frontend Application**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
-- **Elasticsearch**: http://localhost:9200
+- **Elasticsearch**: http://localhost:9200 (loopback only)
 
 ## Configuration
 
@@ -110,10 +113,14 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 Create a `.env` file in the root directory:
 
 ```env
-# Security
-SECRET_KEY=your-secret-key-here
+# Required secrets (openssl rand -hex 32)
+SECRET_KEY=
+ELASTICSEARCH_PASSWORD=
+REDIS_PASSWORD=
+
+# First system admin: created on startup only when no users exist (password 12-72 chars)
 ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=secure-password
+ADMIN_PASSWORD=
 
 # Database
 ELASTICSEARCH_URL=http://localhost:9200
@@ -126,9 +133,10 @@ SMTP_PASSWORD=your-app-password
 FROM_EMAIL=alerts@yourdomain.com
 ```
 
-### Default Credentials
-- **Email**: admin@example.com
-- **Password**: admin123
+### First Login
+There are no default credentials. On first start, the API creates a system admin from
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` if the users index is empty. Log in with those, then create
+other users from the Users tab.
 
 ## API Documentation
 

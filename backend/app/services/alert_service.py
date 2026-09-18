@@ -46,7 +46,7 @@ class AlertService:
     
     async def _check_high_failure_rate(self, customer_id: str) -> Optional[Dict[str, Any]]:
         try:
-            summary = await dmarc_service.get_reports_summary(customer_id, days=1)
+            summary = dmarc_service.get_reports_summary(customer_id, days=1)
             
             if summary.pass_rate < (100 - self.alert_thresholds['high_failure_rate']):
                 return {
@@ -71,8 +71,8 @@ class AlertService:
     
     async def _check_volume_spike(self, customer_id: str) -> Optional[Dict[str, Any]]:
         try:
-            today_summary = await dmarc_service.get_reports_summary(customer_id, days=1)
-            week_summary = await dmarc_service.get_reports_summary(customer_id, days=7)
+            today_summary = dmarc_service.get_reports_summary(customer_id, days=1)
+            week_summary = dmarc_service.get_reports_summary(customer_id, days=7)
             
             avg_daily_volume = week_summary.total_emails / 7
             spike_threshold = avg_daily_volume * self.alert_thresholds['volume_spike']
@@ -140,7 +140,7 @@ class AlertService:
                 }
             }
             
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             unknown_emails = result.get("aggregations", {}).get("unknown_senders", {}).get("filter_unknown", {}).get("total_emails", {}).get("value", 0)
             
             if unknown_emails > self.alert_thresholds['unknown_sender_threshold']:
@@ -169,7 +169,7 @@ class AlertService:
     
     async def _store_alert(self, alert: Dict[str, Any]):
         alert_id = alert['id']
-        await es_service.index_document("alerts", alert_id, alert)
+        es_service.index_document("alerts", alert_id, alert)
     
     async def get_alerts_for_customer(self, customer_id: str, days: int = 7) -> List[Dict[str, Any]]:
         end_date = datetime.utcnow()
@@ -194,7 +194,7 @@ class AlertService:
             ]
         }
         
-        result = await es_service.search_documents("alerts", query)
+        result = es_service.search_documents("alerts", query)
         alerts = []
         for hit in result["hits"]["hits"]:
             alert_data = hit["_source"]
@@ -202,17 +202,18 @@ class AlertService:
         
         return alerts
     
-    async def resolve_alert(self, alert_id: str) -> bool:
+    async def resolve_alert(self, alert_id: str, customer_id: str) -> bool:
         try:
-            alert = await es_service.get_document("alerts", alert_id)
-            if not alert:
+            alert = es_service.get_document("alerts", alert_id)
+            # Another customer's alert looks exactly like a missing one
+            if not alert or alert["_source"].get("customer_id") != customer_id:
                 return False
             
             alert_data = alert["_source"]
             alert_data["resolved"] = True
             alert_data["resolved_at"] = datetime.utcnow().isoformat()
             
-            await es_service.index_document("alerts", alert_id, alert_data)
+            es_service.index_document("alerts", alert_id, alert_data)
             return True
         except Exception:
             return False
@@ -233,7 +234,7 @@ class AlertService:
         }
         
         try:
-            result = await es_service.search_documents("reports", query)
+            result = es_service.search_documents("reports", query)
             customer_buckets = result.get("aggregations", {}).get("customers", {}).get("buckets", [])
             
             for bucket in customer_buckets:

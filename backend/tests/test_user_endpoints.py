@@ -54,7 +54,7 @@ class TestUserEndpoints:
     def test_get_users_endpoint_unauthorized(self):
         """Test users endpoint requires authentication"""
         response = client.get("/api/v1/users/")
-        assert response.status_code == 403  # No auth header provided
+        assert response.status_code == 401  # No auth header provided
         
     def test_get_users_endpoint_invalid_token(self):
         """Test users endpoint rejects invalid token"""

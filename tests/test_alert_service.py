@@ -37,7 +37,7 @@ class TestAlertService:
     async def test_check_high_failure_rate_triggers_alert(self, alert_service, mock_summary_high_failure):
         """Test that high failure rate triggers an alert"""
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc:
-            mock_dmarc.get_reports_summary = AsyncMock(return_value=mock_summary_high_failure)
+            mock_dmarc.get_reports_summary = Mock(return_value=mock_summary_high_failure)
 
             alert = await alert_service._check_high_failure_rate("test-customer")
 
@@ -51,7 +51,7 @@ class TestAlertService:
     async def test_check_high_failure_rate_no_alert_when_normal(self, alert_service, mock_summary_normal):
         """Test that normal failure rate does not trigger alert"""
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc:
-            mock_dmarc.get_reports_summary = AsyncMock(return_value=mock_summary_normal)
+            mock_dmarc.get_reports_summary = Mock(return_value=mock_summary_normal)
 
             alert = await alert_service._check_high_failure_rate("test-customer")
 
@@ -67,7 +67,7 @@ class TestAlertService:
         week_summary.total_emails = 700  # avg = 100/day, today = 500 (5x spike)
 
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc:
-            mock_dmarc.get_reports_summary = AsyncMock(side_effect=[today_summary, week_summary])
+            mock_dmarc.get_reports_summary = Mock(side_effect=[today_summary, week_summary])
 
             alert = await alert_service._check_volume_spike("test-customer")
 
@@ -85,7 +85,7 @@ class TestAlertService:
         week_summary.total_emails = 700  # avg = 100/day
 
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc:
-            mock_dmarc.get_reports_summary = AsyncMock(side_effect=[today_summary, week_summary])
+            mock_dmarc.get_reports_summary = Mock(side_effect=[today_summary, week_summary])
 
             alert = await alert_service._check_volume_spike("test-customer")
 
@@ -107,7 +107,7 @@ class TestAlertService:
         }
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value=mock_es_response)
+            mock_es.search_documents = Mock(return_value=mock_es_response)
 
             alert = await alert_service._check_unknown_senders("test-customer")
 
@@ -131,7 +131,7 @@ class TestAlertService:
         }
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value=mock_es_response)
+            mock_es.search_documents = Mock(return_value=mock_es_response)
 
             alert = await alert_service._check_unknown_senders("test-customer")
 
@@ -170,7 +170,7 @@ class TestAlertService:
         }
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             await alert_service._store_alert(alert)
 
@@ -189,7 +189,7 @@ class TestAlertService:
         }
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.search_documents = AsyncMock(return_value=mock_es_response)
+            mock_es.search_documents = Mock(return_value=mock_es_response)
 
             alerts = await alert_service.get_alerts_for_customer("test-customer", days=7)
 
@@ -202,16 +202,17 @@ class TestAlertService:
         mock_alert = {
             "_source": {
                 "id": "alert-123",
+                "customer_id": "test-customer",
                 "alert_type": "high_failure_rate",
                 "resolved": False
             }
         }
 
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.get_document = AsyncMock(return_value=mock_alert)
-            mock_es.index_document = AsyncMock()
+            mock_es.get_document = Mock(return_value=mock_alert)
+            mock_es.index_document = Mock()
 
-            result = await alert_service.resolve_alert("alert-123")
+            result = await alert_service.resolve_alert("alert-123", "test-customer")
 
             assert result is True
             # Verify the alert was updated with resolved status
@@ -224,11 +225,22 @@ class TestAlertService:
     async def test_resolve_alert_not_found(self, alert_service):
         """Test resolving non-existent alert"""
         with patch('backend.app.services.alert_service.es_service') as mock_es:
-            mock_es.get_document = AsyncMock(return_value=None)
+            mock_es.get_document = Mock(return_value=None)
 
-            result = await alert_service.resolve_alert("nonexistent-alert")
+            result = await alert_service.resolve_alert("nonexistent-alert", "test-customer")
 
             assert result is False
+
+    @pytest.mark.asyncio
+    async def test_resolve_alert_other_customer_denied(self, alert_service):
+        """An alert owned by another customer must not be resolvable"""
+        other = {"_source": {"id": "alert-9", "customer_id": "other-customer", "resolved": False}}
+        with patch('backend.app.services.alert_service.es_service') as mock_es:
+            mock_es.get_document = Mock(return_value=other)
+            mock_es.index_document = Mock()
+
+            assert await alert_service.resolve_alert("alert-9", "test-customer") is False
+            assert not mock_es.index_document.called
 
     def test_alert_thresholds_configuration(self, alert_service):
         """Test that alert thresholds are properly configured"""
@@ -248,7 +260,7 @@ class TestAlertService:
     async def test_error_handling_in_failure_rate_check(self, alert_service):
         """Test error handling when failure rate check fails"""
         with patch('backend.app.services.alert_service.dmarc_service') as mock_dmarc:
-            mock_dmarc.get_reports_summary = AsyncMock(side_effect=Exception("ES error"))
+            mock_dmarc.get_reports_summary = Mock(side_effect=Exception("ES error"))
 
             alert = await alert_service._check_high_failure_rate("test-customer")
 
@@ -271,7 +283,7 @@ class TestAlertService:
 
         with patch('backend.app.services.alert_service.es_service') as mock_es, \
              patch.object(alert_service, 'check_alerts_for_customer', new_callable=AsyncMock) as mock_check:
-            mock_es.search_documents = AsyncMock(return_value=mock_es_response)
+            mock_es.search_documents = Mock(return_value=mock_es_response)
             mock_check.return_value = []
 
             await alert_service.run_periodic_checks()

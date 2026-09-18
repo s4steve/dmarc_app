@@ -9,24 +9,19 @@ import uuid
 
 class DMARCService:
     def ingest_report(self, xml_content: str, customer_id: str) -> str:
-        try:
-            report = dmarc_parser.parse_xml_report(xml_content, customer_id)
-            report_id = str(uuid.uuid4())
-            
-            # Identify third-party services for each record
-            for record in report.records:
-                if record.source_ip:
-                    identified_service = third_party_service_identifier.identify_service_by_ip(record.source_ip)
-                    record.third_party_service = identified_service
-                else:
-                    record.third_party_service = "unknown"
-            
-            report_doc = report.dict()
-            es_service.index_document("reports", report_id, report_doc)
-            
-            return report_id
-        except Exception as e:
-            raise ValueError(f"Failed to ingest DMARC report: {str(e)}")
+        # Parser raises ValueError for bad reports; storage errors propagate as 500s
+        report = dmarc_parser.parse_xml_report(xml_content, customer_id)
+        report_id = str(uuid.uuid4())
+
+        # Identify third-party services for each record
+        for record in report.records:
+            if record.source_ip:
+                record.third_party_service = third_party_service_identifier.identify_service_by_ip(record.source_ip)
+            else:
+                record.third_party_service = "unknown"
+
+        es_service.index_document("reports", report_id, report.dict())
+        return report_id
     
     def get_reports_summary(self, customer_id: str, days: int = 7, domain: Optional[str] = None) -> DMARCReportSummary:
         # Sanitize and validate inputs

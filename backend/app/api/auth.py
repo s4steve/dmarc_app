@@ -1,93 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from datetime import timedelta
-from ..models.user import UserLogin, Token, User, TokenData
+from ..models.user import UserLogin, Token, User
 from ..services.user_service import user_service
 from ..services.session_service import session_service
-from ..core.security import create_access_token, verify_token
-from ..core.config import settings
+from ..core.security import create_access_token, verify_token, _unauthorized
 from ..middleware.rate_limiter import limiter, user_limiter
 
 router = APIRouter()
 security = HTTPBearer()
 
 @router.post("/login", response_model=Token)
-# @limiter.limit("5/minute")  # Temporarily disabled
+@limiter.limit("5/minute")
 async def login(request: Request, user_credentials: UserLogin):
-    # Simplified login for testing - accept known credentials
-    valid_users = {
-        "admin@example.com": {
-            "password": "admin123",
-            "customer_id": "default",
-            "role": "system_admin",
-            "user_id": "admin"
-        },
-        "steve@stevewhittle.net": {
-            "password": "admin123",
-            "customer_id": "default",
-            "role": "system_admin",
-            "user_id": "steve"
-        }
-    }
-
-    user_data = valid_users.get(user_credentials.email)
-    if user_data and user_credentials.password == user_data["password"]:
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={
-                "sub": user_credentials.email,
-                "customer_id": user_data["customer_id"],
-                "role": user_data["role"],
-                "user_id": user_data["user_id"]
-            },
-            expires_delta=access_token_expires
-        )
-        return {"access_token": access_token, "token_type": "bearer"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    user = await user_service.authenticate_user(user_credentials.email, user_credentials.password)
+    if not user or not user.is_active:
+        raise _unauthorized("Incorrect email or password")
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 async def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> User:
-    try:
-        payload = verify_token(credentials.credentials)
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Store token in request state for session tracking
-        request.state.token = credentials.credentials
-        
-        # Return a simplified user object for testing
-        return User(
-            id=payload.get("user_id", "admin"),
-            email=email,
-            full_name="System Administrator",
-            role=payload.get("role", "system_admin"),
-            customer_id=payload.get("customer_id", "default"),
-            is_active=True,
-            created_at="2025-07-28T16:00:00",
-            updated_at="2025-07-28T16:00:00"
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    payload = verify_token(credentials.credentials)
+    email = payload.get("sub")
+    # Look the user up on every request so role changes and deactivation apply immediately
+    user = await user_service.get_user_by_email(email) if email else None
+    if not user:
+        raise _unauthorized()
+    # Store token in request state for session activity tracking
+    request.state.token = credentials.credentials
+    request.state.user_email = user.email
+    return User(**user.model_dump(exclude={"hashed_password"}))
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise _unauthorized()
     return current_user
 
 def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
@@ -107,70 +55,23 @@ def require_system_admin(current_user: User = Depends(get_current_active_user)) 
     return current_user
 
 @router.post("/logout")
-@limiter.limit("10/minute")  # Allow multiple logout attempts
+@limiter.limit("10/minute")
 async def logout(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Logout user and invalidate token
-    """
-    try:
-        # Blacklist the current token
-        success = session_service.blacklist_token(credentials.credentials, "logout")
-        
-        if success:
-            return {
-                "message": "Successfully logged out",
-                "detail": "Your session has been terminated"
-            }
-        else:
-            return {
-                "message": "Logout completed",
-                "detail": "Session may have already been terminated"
-            }
-    
-    except Exception as e:
-        # Don't expose internal errors
-        return {
-            "message": "Logout completed",
-            "detail": "Session terminated"
-        }
+    session_service.blacklist_token(credentials.credentials, current_user.email, "logout")
+    return {"message": "Successfully logged out"}
 
 @router.post("/logout-all")
-@limiter.limit("5/minute")  # More restrictive for logout all
+@limiter.limit("5/minute")
 async def logout_all_sessions(
     request: Request,
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Logout user from all sessions
-    """
-    try:
-        # Invalidate all user sessions using email as user ID (consistent with session creation)
-        success = session_service.invalidate_all_user_sessions(
-            current_user.email, 
-            "logout_all"
-        )
-        
-        if success:
-            return {
-                "message": "Successfully logged out from all sessions",
-                "detail": "All your active sessions have been terminated"
-            }
-        else:
-            return {
-                "message": "Logout completed",
-                "detail": "Sessions terminated"
-            }
-    
-    except Exception as e:
-        # Don't expose internal errors
-        return {
-            "message": "Logout completed",
-            "detail": "Sessions terminated"
-        }
+    session_service.invalidate_all_user_sessions(current_user.email, "logout_all")
+    return {"message": "Successfully logged out from all sessions"}
 
 @router.get("/sessions")
 @user_limiter.limit("20/minute")
@@ -178,31 +79,13 @@ async def get_active_sessions(
     request: Request,
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get user's active sessions
-    """
-    try:
-        sessions = session_service.get_user_sessions(current_user.id)
-        
-        # Remove sensitive information before returning
-        safe_sessions = []
-        for session in sessions:
-            safe_session = {
-                "created_at": session.get("created_at"),
-                "last_accessed": session.get("last_accessed"),
-                "ip_address": session.get("ip_address", "Unknown"),
-                "user_agent": session.get("user_agent", "Unknown")[:100]  # Truncate user agent
-            }
-            safe_sessions.append(safe_session)
-        
-        return {
-            "active_sessions": safe_sessions,
-            "total_count": len(safe_sessions)
+    sessions = [
+        {
+            "created_at": s.get("created_at"),
+            "last_accessed": s.get("last_accessed"),
+            "ip_address": s.get("ip_address") or "Unknown",
+            "user_agent": (s.get("user_agent") or "Unknown")[:100]
         }
-    
-    except Exception as e:
-        # Don't expose internal errors
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to retrieve session information"
-        )
+        for s in session_service.get_user_sessions(current_user.email)
+    ]
+    return {"active_sessions": sessions, "total_count": len(sessions)}

@@ -134,12 +134,15 @@ class ElasticsearchService:
         }
         return index_name, mapping
     
-    def index_document(self, index_suffix: str, doc_id: str, document: Dict[str, Any]):
+    def index_document(self, index_suffix: str, doc_id: str, document: Dict[str, Any], refresh: Optional[str] = None):
+        # refresh="true" makes the write visible to search before returning
         index_name = f"{self.index_prefix}-{index_suffix}"
+        extra = {"refresh": refresh} if refresh else {}
         return self.client.index(
             index=index_name,
             id=doc_id,
-            body=document
+            body=document,
+            **extra
         )
     
     def search_documents(self, index_suffix: str, query: Dict[str, Any], size: int = 100):
@@ -157,9 +160,10 @@ class ElasticsearchService:
         except Exception:
             return None
     
-    def delete_document(self, index_suffix: str, doc_id: str):
+    def delete_document(self, index_suffix: str, doc_id: str, refresh: Optional[str] = None):
         index_name = f"{self.index_prefix}-{index_suffix}"
-        return self.client.delete(index=index_name, id=doc_id)
+        extra = {"refresh": refresh} if refresh else {}
+        return self.client.delete(index=index_name, id=doc_id, **extra)
     
     def recreate_services_index(self):
         """Recreate the services index with the correct mapping"""

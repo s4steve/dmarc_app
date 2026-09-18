@@ -221,7 +221,7 @@ class TestNotificationService:
     async def test_log_notification(self, notification_service, mock_admin_user):
         """Test notification logging"""
         with patch('backend.app.services.notification_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             await notification_service._log_notification(
                 "test-customer",
@@ -259,7 +259,7 @@ class TestNotificationService:
         }
 
         with patch('backend.app.services.notification_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock()
+            mock_es.index_document = Mock()
 
             result = await notification_service.update_notification_preferences(
                 "test-customer", new_prefs
@@ -276,7 +276,7 @@ class TestNotificationService:
     async def test_update_notification_preferences_failure(self, notification_service):
         """Test notification preference update failure handling"""
         with patch('backend.app.services.notification_service.es_service') as mock_es:
-            mock_es.index_document = AsyncMock(side_effect=Exception("ES error"))
+            mock_es.index_document = Mock(side_effect=Exception("ES error"))
 
             result = await notification_service.update_notification_preferences(
                 "test-customer", {}

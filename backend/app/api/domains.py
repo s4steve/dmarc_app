@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from ..models.user import User
+from ..utils.sanitizer import InputSanitizer
 from .auth import get_current_active_user
 
 router = APIRouter()
@@ -14,7 +15,7 @@ class Domain(BaseModel):
     is_active: bool
 
 class DomainCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=253)
 
 # In-memory domain storage for now (could be moved to Elasticsearch later)
 _domains = {
@@ -50,7 +51,7 @@ async def create_domain(
 
     new_domain = {
         "id": str(uuid.uuid4()),
-        "name": domain.name,
+        "name": InputSanitizer.sanitize_domain(domain.name),
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
         "is_active": True

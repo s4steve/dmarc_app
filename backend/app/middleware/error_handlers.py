@@ -59,7 +59,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
                 "method": request.method,
                 "client_ip": client_ip,
                 "user_agent": user_agent[:100] if user_agent else "unknown",
-                "original_detail": str(exc.detail)
+                "detail": str(exc.detail)
             }
         )
     
@@ -76,14 +76,18 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     elif exc.status_code >= 500:
         error_type = "internal"
     
-    # Sanitize the error message
-    sanitized_detail = ErrorSanitizer.sanitize_error_message(str(exc.detail), error_type)
+    # 4xx details are messages we wrote ourselves; only 5xx may carry internals
+    if exc.status_code >= 500:
+        detail = ErrorSanitizer.sanitize_error_message(str(exc.detail), error_type)
+    else:
+        detail = str(exc.detail)
     
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": error_type,
-            "message": sanitized_detail,
+            "message": detail,
+            "detail": detail,  # FastAPI's standard field, read by the frontend
             "status_code": exc.status_code
         },
         headers=getattr(exc, 'headers', None)

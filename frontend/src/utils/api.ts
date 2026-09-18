@@ -75,6 +75,10 @@ export const authAPI = {
     const response = await api.post('/auth/login', { email, password });
     return response.data;
   },
+
+  logout: async () => {
+    await api.post('/auth/logout');
+  },
 };
 
 export const dmarcAPI = {

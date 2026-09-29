@@ -51,6 +51,9 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 - **Elasticsearch 8.11**: High-performance search and analytics engine
 - **Redis 7**: Session management and caching
 
+### AI Integration
+- **MCP server** (`mcp_server/`): Read-only Model Context Protocol server so Claude and other MCP clients can query your DMARC data
+
 ## Quick Start
 
 ### Prerequisites
@@ -282,6 +285,80 @@ The catalog of known sending services (used to label report sources) is shared b
 #### Health checks (public)
 
 `GET /health` (at the server root, not under `/api/v1`), plus `GET /dmarc/health`, `/dns/health`, `/alerts/health`, `/configuration/health`, `/notifications/health` and `/analytics/health`. Each returns `{"status": "healthy", ...}`.
+
+## MCP Server
+
+`mcp_server/` is a small [Model Context Protocol](https://modelcontextprotocol.io) server. It lets Claude Code, Claude Desktop or any other MCP client answer questions about your DMARC data, such as "what's my failure rate this week?" or "which sources are failing DKIM?".
+
+It's a **read-only client of the REST API**. It logs in as a normal user, so it gets the same authentication, `customer_id` scoping and rate limits as the web app. It never connects to Elasticsearch, and it can only see the data that its user can see.
+
+### Setup
+
+1. Create a dedicated user with the `read_only` role for the MCP server (`POST /users/`, or from the Users tab).
+2. Install the dependencies (Python 3.10+):
+   ```bash
+   pip install -r mcp_server/requirements.txt
+   ```
+3. Set these environment variables:
+
+   | Variable | Required | Default |
+   |---|---|---|
+   | `DMARC_API_URL` | no | `http://localhost:8000/api/v1` |
+   | `DMARC_EMAIL` | yes | |
+   | `DMARC_PASSWORD` | yes | |
+
+   The server logs in on the first tool call. When its token expires (after 30 minutes), it logs in again automatically.
+
+**Claude Code:**
+
+```bash
+claude mcp add dmarc -e DMARC_EMAIL=mcp@yourdomain.com -e DMARC_PASSWORD=<password> -- python /path/to/dmarc_app/mcp_server/server.py
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "dmarc": {
+      "command": "python",
+      "args": ["/path/to/dmarc_app/mcp_server/server.py"],
+      "env": {
+        "DMARC_API_URL": "http://localhost:8000/api/v1",
+        "DMARC_EMAIL": "mcp@yourdomain.com",
+        "DMARC_PASSWORD": "<password>"
+      }
+    }
+  }
+}
+```
+
+Use the Python interpreter where you installed the requirements. With a virtualenv, that's its `bin/python`.
+
+### Tools
+
+| Tool | Calls | Arguments |
+|---|---|---|
+| `get_summary` | `GET /dmarc/summary` | `days` (1-365, default 7), `domain` |
+| `get_time_series` | `GET /dmarc/time-series` | `days` (1-365, default 30), `domain` |
+| `list_reports` | `GET /dmarc/reports` | `limit` (default 20), `domain`. `raw_xml` is removed from each report to keep responses small. |
+| `get_detailed_report` | `GET /analytics/detailed-report` | `days` (1-365, default 30) |
+| `list_alerts` | `GET /alerts/` | `days` (1-30, default 7) |
+| `list_domains` | `GET /domains/` | none |
+
+There are no write tools: the server can't upload reports, resolve alerts or change domains. API errors, such as a `422` for an out-of-range `days`, are returned to the client as tool errors, with the API's `detail` message.
+
+### Testing
+
+```bash
+cd mcp_server && python -m pytest test_server.py
+```
+
+To try the tools interactively against a running API, use the MCP Inspector:
+
+```bash
+DMARC_EMAIL=mcp@yourdomain.com DMARC_PASSWORD=<password> npx @modelcontextprotocol/inspector python mcp_server/server.py
+```
 
 ## Usage Guide
 

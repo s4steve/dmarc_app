@@ -218,5 +218,47 @@ export const adminServicesAPI = {
   },
 };
 
+export interface SpfStatus {
+  domain: string;
+  configured: boolean;
+  include?: string;
+  senders?: string[];
+  terms?: string[];
+  lookups?: number | null;
+  last_error?: string | null;
+  updated_at?: string | null;
+  current_record?: string | null;
+  installed?: boolean | null;
+  suggested_record?: string;
+}
+
+export interface SpfSuggestion {
+  service_name: string;
+  spf_includes: string[];
+  emails_seen: number;
+}
+
+export const spfAPI = {
+  getStatus: async (domain: string): Promise<SpfStatus> => {
+    const response = await api.get(`/spf/${encodeURIComponent(domain)}`);
+    return response.data;
+  },
+
+  getSuggestions: async (domain: string): Promise<SpfSuggestion[]> => {
+    const response = await api.get(`/spf/${encodeURIComponent(domain)}/suggestions`);
+    return response.data.services;
+  },
+
+  publish: async (domain: string, senders: string[]): Promise<SpfStatus> => {
+    const response = await api.put(`/spf/${encodeURIComponent(domain)}`, { senders });
+    return response.data;
+  },
+
+  remove: async (domain: string): Promise<SpfStatus> => {
+    const response = await api.delete(`/spf/${encodeURIComponent(domain)}`);
+    return response.data;
+  },
+};
+
 export { api };
 export default api;

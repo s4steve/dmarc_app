@@ -48,6 +48,9 @@ class ThirdPartyService(BaseModel):
     ip_ranges: List[str]
     domain_patterns: List[str]
     reverse_dns_patterns: List[str]
+    # Domains whose SPF records authorize this service, for managed SPF flattening.
+    # Empty when the include is account-specific (entered by hand instead).
+    spf_includes: List[str] = []
     configuration_instructions: Optional[str] = None
     documentation: Optional[str] = None
     setup_guide: Optional[str] = None

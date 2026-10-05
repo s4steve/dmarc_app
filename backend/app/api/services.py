@@ -16,6 +16,7 @@ class ServiceUpdate(BaseModel):
     ip_ranges: Optional[List[str]] = None
     domain_patterns: Optional[List[str]] = None
     reverse_dns_patterns: Optional[List[str]] = None
+    spf_includes: Optional[List[str]] = None
     configuration_instructions: Optional[str] = None
     documentation: Optional[str] = None
     is_active: Optional[bool] = None

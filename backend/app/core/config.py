@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: str = "alerts@dmarcanalytics.com"
 
+    # Managed SPF on the dns_server_db control plane; the feature is off until all three are set.
+    # The token should be editor on SPF_ZONE only, e.g. `create-token --grant spf.example.net.:editor`.
+    DNS_CONTROL_PLANE_URL: Optional[str] = None
+    DNS_CONTROL_PLANE_TOKEN: Optional[str] = None
+    SPF_ZONE: Optional[str] = None
+    # Plain http is refused except to loopback, unless this is set (dev only)
+    DNS_CONTROL_PLANE_ALLOW_HTTP: bool = False
+
     @field_validator("SECRET_KEY")
     @classmethod
     def secret_key_strong(cls, v: str) -> str:

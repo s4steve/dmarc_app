@@ -14,6 +14,7 @@ class ThirdPartyServiceIdentifier:
         return [
             ThirdPartyService(
                 service_name="Mailchimp",
+                spf_includes=["servers.mcsv.net"],
                 ip_ranges=["205.201.128.0/20", "198.2.128.0/18", "148.105.8.0/21"],
                 domain_patterns=["*.mailchimp.com", "*.mcsv.net"],
                 reverse_dns_patterns=["*.mailchimp.com", "*.mcsv.net"],
@@ -21,6 +22,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="SendGrid",
+                spf_includes=["sendgrid.net"],
                 ip_ranges=["149.72.0.0/16", "208.115.214.0/24", "198.37.147.0/24"],
                 domain_patterns=["*.sendgrid.net", "*.sendgrid.com"],
                 reverse_dns_patterns=["*.sendgrid.net", "*.sendgrid.com"],
@@ -28,6 +30,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Amazon SES",
+                spf_includes=["amazonses.com"],
                 ip_ranges=["54.240.0.0/12", "205.251.192.0/19"],
                 domain_patterns=["*.amazonses.com", "*.ses.amazonaws.com"],
                 reverse_dns_patterns=["*.amazonses.com", "*.amazonaws.com"],
@@ -35,6 +38,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Microsoft 365",
+                spf_includes=["spf.protection.outlook.com"],
                 ip_ranges=["40.92.0.0/15", "40.107.0.0/16", "52.100.0.0/14"],
                 domain_patterns=["*.outlook.com", "*.office365.com", "*.microsoft.com"],
                 reverse_dns_patterns=["*.outlook.com", "*.protection.outlook.com"],
@@ -42,6 +46,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Google Workspace",
+                spf_includes=["_spf.google.com"],
                 ip_ranges=["209.85.128.0/17", "64.233.160.0/19", "66.249.80.0/20"],
                 domain_patterns=["*.google.com", "*.googlemail.com"],
                 reverse_dns_patterns=["*.google.com", "*.googlemail.com"],
@@ -49,6 +54,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Constant Contact",
+                spf_includes=["spf.constantcontact.com"],
                 ip_ranges=["208.75.123.0/24", "69.57.132.0/24"],
                 domain_patterns=["*.constantcontact.com", "*.ctctcdn.com"],
                 reverse_dns_patterns=["*.constantcontact.com"],
@@ -70,6 +76,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Campaign Monitor",
+                spf_includes=["_spf.createsend.com"],
                 ip_ranges=["103.47.147.0/24", "103.47.148.0/24"],
                 domain_patterns=["*.campaignmonitor.com", "*.createsend.com"],
                 reverse_dns_patterns=["*.campaignmonitor.com"],
@@ -77,6 +84,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Mandrill/Mailchimp Transactional",
+                spf_includes=["spf.mandrillapp.com"],
                 ip_ranges=["198.2.128.0/24", "198.2.129.0/24"],
                 domain_patterns=["*.mandrillapp.com"],
                 reverse_dns_patterns=["*.mandrillapp.com"],
@@ -84,6 +92,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Postmark",
+                spf_includes=["spf.mtasv.net"],
                 ip_ranges=["50.31.156.6/32", "50.31.156.77/32"],
                 domain_patterns=["*.postmarkapp.com"],
                 reverse_dns_patterns=["*.postmarkapp.com"],
@@ -91,6 +100,7 @@ class ThirdPartyServiceIdentifier:
             ),
             ThirdPartyService(
                 service_name="Salesforce Marketing Cloud",
+                spf_includes=["cust-spf.exacttarget.com"],
                 ip_ranges=["136.147.0.0/16", "199.21.137.0/24"],
                 domain_patterns=["*.exacttarget.com", "*.salesforce.com"],
                 reverse_dns_patterns=["*.exacttarget.com", "*.salesforce.com"],

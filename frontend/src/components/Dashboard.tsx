@@ -10,6 +10,7 @@ import ConfigurationGuide from './ConfigurationGuide';
 import FileUpload from './FileUpload';
 import AdminInterface from './AdminInterface';
 import DNSScanner from './DNSScanner';
+import SpfFlattening from './SpfFlattening';
 
 const Dashboard: React.FC = () => {
   return (
@@ -25,6 +26,7 @@ const Dashboard: React.FC = () => {
         <Route path="/upload" element={<FileUpload />} />
         <Route path="/admin" element={<AdminInterface />} />
         <Route path="/dns-scanner" element={<DNSScanner />} />
+        <Route path="/spf" element={<SpfFlattening />} />
       </Routes>
     </div>
   );

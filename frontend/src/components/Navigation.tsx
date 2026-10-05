@@ -8,7 +8,8 @@ import {
   ServerIcon,
   CloudArrowUpIcon,
   ShieldCheckIcon,
-  DocumentMagnifyingGlassIcon
+  DocumentMagnifyingGlassIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,6 +20,7 @@ const Navigation: React.FC = () => {
     { id: '/', name: 'Dashboard', icon: ChartBarIcon },
     { id: '/alerts', name: 'Alerts', icon: ExclamationTriangleIcon },
     { id: '/dns', name: 'DNS Records', icon: ServerIcon },
+    { id: '/spf', name: 'Managed SPF', icon: EnvelopeIcon },
     { id: '/upload', name: 'Upload', icon: CloudArrowUpIcon },
     { id: '/users', name: 'Users', icon: UserGroupIcon },
     { id: '/settings', name: 'Configuration', icon: CogIcon },

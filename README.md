@@ -134,6 +134,14 @@ SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 FROM_EMAIL=alerts@yourdomain.com
+
+# Managed SPF (Optional): flattened SPF hosted on a dns_server_db control plane.
+# The token should be editor on SPF_ZONE only:
+#   control-plane create-token --name dmarc-app --grant spf.yourdomain.net.:editor
+DNS_CONTROL_PLANE_URL=https://cp.yourdomain.net
+DNS_CONTROL_PLANE_TOKEN=dnsdb_...
+SPF_ZONE=spf.yourdomain.net.
+# DNS_CONTROL_PLANE_ALLOW_HTTP=1   # development only; https is required except to loopback
 ```
 
 ### First Login
@@ -239,6 +247,17 @@ curl -X POST -H "Authorization: Bearer $TOKEN" $API/auth/logout
 | POST | `/dns/check/{domain}` | user | Looks up and validates SPF, DMARC, DKIM and MX records, stores the results, and returns them with an `overall_status` and recommendations. |
 | GET | `/dns/records` | user | Previously checked DNS records for the customer. |
 | POST | `/dns-scanner/scan-domain/` | admin | Body `{"domain": "example.com"}`. Returns the live DMARC, SPF and DKIM (`_dkim` selector) records. |
+
+#### Managed SPF — `/spf`
+
+Each domain gets a flattened SPF policy at an unguessable name under `SPF_ZONE`, kept up to date by the DNS control plane. The customer replaces their SPF record with `v=spf1 include:<that name> ~all`. Returns 503 until the `DNS_CONTROL_PLANE_*` settings and `SPF_ZONE` are set.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/spf/{domain}` | user | The policy: `include`, `senders`, flattened `terms`, `lookups`, `last_error`, whether the domain's live SPF record already has the include (`installed`), and a `suggested_record`. |
+| GET | `/spf/{domain}/suggestions` | user | Catalog services that can be flattened, with `emails_seen` for those found in the domain's reports. |
+| PUT | `/spf/{domain}` | admin | Body `{"senders": ["_spf.google.com", "192.0.2.0/24"]}` (1–50). Publishes immediately; senders the control plane can't flatten return 400. |
+| DELETE | `/spf/{domain}` | admin | Removes the policy. Returns 409 while the domain's SPF record still includes it, because a missing include would make SPF fail for all of its mail. |
 
 #### Alerts — `/alerts`
 

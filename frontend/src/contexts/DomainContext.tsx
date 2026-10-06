@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { domainAPI, Domain } from '../utils/api';
+import { useAuth } from './AuthContext';
 
 
 interface DomainContextType {
@@ -27,6 +28,7 @@ interface DomainProviderProps {
 }
 
 export const DomainProvider: React.FC<DomainProviderProps> = ({ children }) => {
+  const { user } = useAuth();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -106,9 +108,16 @@ export const DomainProvider: React.FC<DomainProviderProps> = ({ children }) => {
     }
   };
 
+  // Domains need a logged-in user: loading them on the login page got a 401, whose
+  // redirect to /login reloaded the page and requested them again, forever.
   useEffect(() => {
-    loadDomains();
-  }, []);
+    if (user) {
+      loadDomains();
+    } else {
+      setDomains([]);
+      setSelectedDomain(null);
+    }
+  }, [user]);
 
   return (
     <DomainContext.Provider

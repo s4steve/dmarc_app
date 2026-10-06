@@ -33,7 +33,7 @@ class DMARCService:
         
         # Build the base query conditions with safe field references
         must_conditions = [
-            {"term": {"customer_id.keyword": customer_id}},
+            {"term": {"customer_id": customer_id}},
             {"range": {
                 "metadata.date_range_begin": {
                     "gte": start_date.isoformat(),
@@ -42,9 +42,9 @@ class DMARCService:
             }}
         ]
         
-        # Add domain filter if specified (using .keyword for exact match)
+        # Add domain filter if specified (keyword field: exact match)
         if domain:
-            must_conditions.append({"term": {"policy.domain.keyword": domain}})
+            must_conditions.append({"term": {"policy.domain": domain}})
         
         query = {
             "query": {
@@ -65,7 +65,7 @@ class DMARCService:
                         },
                         "passed_emails": {
                             "filter": {
-                                "term": {"records.dmarc_result.keyword": "pass"}
+                                "term": {"records.dmarc_result": "pass"}
                             },
                             "aggs": {
                                 "count": {
@@ -77,7 +77,7 @@ class DMARCService:
                         },
                         "services": {
                             "terms": {
-                                "field": "records.third_party_service.keyword",
+                                "field": "records.third_party_service",
                                 "size": 10,
                                 "missing": "unknown"
                             },
@@ -128,10 +128,10 @@ class DMARCService:
         domain = InputSanitizer.sanitize_domain(domain) if domain else None
         
         # Build the base query conditions with sanitized inputs
-        must_conditions = [{"term": {"customer_id.keyword": customer_id}}]
+        must_conditions = [{"term": {"customer_id": customer_id}}]
         
         if domain:
-            must_conditions.append({"term": {"policy.domain.keyword": domain}})
+            must_conditions.append({"term": {"policy.domain": domain}})
         
         query = {
             "query": {
@@ -163,7 +163,7 @@ class DMARCService:
         
         # Build the base query conditions with sanitized inputs
         must_conditions = [
-            {"term": {"customer_id.keyword": customer_id}},
+            {"term": {"customer_id": customer_id}},
             {"range": {
                 "metadata.date_range_begin": {
                     "gte": start_date.isoformat(),
@@ -172,9 +172,9 @@ class DMARCService:
             }}
         ]
         
-        # Add domain filter if specified (using .keyword for exact match)
+        # Add domain filter if specified (keyword field: exact match)
         if domain:
-            must_conditions.append({"term": {"policy.domain.keyword": domain}})
+            must_conditions.append({"term": {"policy.domain": domain}})
         
         query = {
             "query": {
@@ -201,7 +201,7 @@ class DMARCService:
                                 },
                                 "passed_emails": {
                                     "filter": {
-                                        "term": {"records.dmarc_result.keyword": "pass"}
+                                        "term": {"records.dmarc_result": "pass"}
                                     },
                                     "aggs": {
                                         "count": {

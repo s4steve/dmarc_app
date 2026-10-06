@@ -403,10 +403,10 @@ class TestCrossCustomerAccessPrevention(TestMultiTenancyIsolation):
             customer_filter_found = False
             for condition in must_conditions:
                 if "term" in condition:
-                    # Check for customer_id.keyword (proper ES keyword field)
-                    if "customer_id.keyword" in condition["term"]:
+                    # customer_id is mapped as keyword itself; it has no .keyword subfield
+                    if "customer_id" in condition["term"]:
                         customer_filter_found = True
-                        assert condition["term"]["customer_id.keyword"] == customer_a_id
+                        assert condition["term"]["customer_id"] == customer_a_id
 
             assert customer_filter_found, "Customer ID filter not found in query"
 

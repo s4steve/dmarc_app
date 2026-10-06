@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminServicesAPI, ThirdPartyService } from '../utils/api';
 import { PlusIcon, PencilIcon, TrashIcon, DocumentTextIcon, CogIcon } from '@heroicons/react/24/outline';
+import SpfConnectionPanel from './SpfConnectionPanel';
 
 const AdminInterface: React.FC = () => {
   const { user } = useAuth();
@@ -176,6 +177,8 @@ const AdminInterface: React.FC = () => {
           {error}
         </div>
       )}
+
+      <SpfConnectionPanel />
 
       <div style={{
         backgroundColor: 'white',

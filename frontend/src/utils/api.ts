@@ -263,5 +263,32 @@ export const spfAPI = {
   },
 };
 
+export interface SpfConnectionStatus {
+  configured: boolean;
+  url: string | null;
+  zone: string | null;
+  token_set: boolean;
+  allow_http: boolean;
+  transport_error: string | null;
+}
+
+export interface SpfConnectionCheck {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  detail: string;
+}
+
+export const spfAdminAPI = {
+  getStatus: async (): Promise<SpfConnectionStatus> => {
+    const response = await api.get('/spf/admin/status');
+    return response.data;
+  },
+
+  testConnection: async (): Promise<{ ok: boolean; checks: SpfConnectionCheck[] }> => {
+    const response = await api.post('/spf/admin/test');
+    return response.data;
+  },
+};
+
 export { api };
 export default api;

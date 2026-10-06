@@ -173,11 +173,15 @@ Anyone can view a domain's policy; only `admin` and `system_admin` users can pub
    ```
 
    The token is only ever sent over `https`, except to a loopback address. `DNS_CONTROL_PLANE_ALLOW_HTTP=true` lifts that for development only.
-3. **Restart the API** (`docker compose up -d api`) and check that the feature is on. A domain with no policy should return `"configured": false` rather than a 503:
+3. **Restart the API** (`docker compose up -d api`), then open **System Admin** as a system admin and click **Test connection** in the Managed SPF connection panel. It shows the settings the API loaded (never the token) and checks, in order:
+   - the settings are all set;
+   - the URL is https, or plain http is allowed;
+   - the control plane answers;
+   - the token is accepted;
+   - the token can edit `SPF_ZONE`;
+   - the zone exists.
 
-   ```bash
-   curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/spf/example.com
-   ```
+   It also warns when the token expires or is an admin token.
 
 ### Local development
 
@@ -199,6 +203,7 @@ Check a published policy with `dig @127.0.0.1 -p 5301 TXT <include name>`. Nothi
 
 | Symptom | Cause |
 |---|---|
+| Any of the below | Start with **Test connection** on the System Admin page; it names the failing step. |
 | 503 "Managed SPF is not configured" | One of `DNS_CONTROL_PLANE_URL`, `DNS_CONTROL_PLANE_TOKEN` or `SPF_ZONE` is unset in the API container. |
 | 503 "Managed SPF is misconfigured" | The URL is plain `http` to a non-loopback host. Use `https`, or set `DNS_CONTROL_PLANE_ALLOW_HTTP` in development. The API log has details. |
 | 502 "DNS control plane error" | The control plane rejected the app's token: wrong, revoked, or not editor on `SPF_ZONE`. The API log shows the status it returned. |
@@ -312,6 +317,8 @@ Each domain gets a flattened SPF policy at an unguessable name under `SPF_ZONE`,
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
+| GET | `/spf/admin/status` | system admin | The control-plane connection settings the API loaded (never the token), and whether they are usable. |
+| POST | `/spf/admin/test` | system admin | Checks the connection step by step: settings, transport, reachability, token, access to `SPF_ZONE`, zone exists. Each check is `pass`, `warn` or `fail`. |
 | GET | `/spf/{domain}` | user | The policy: `include`, `senders`, flattened `terms`, `lookups`, `last_error`, whether the domain's live SPF record already has the include (`installed`), and a `suggested_record`. |
 | GET | `/spf/{domain}/suggestions` | user | Catalog services that can be flattened, with `emails_seen` for those found in the domain's reports. |
 | PUT | `/spf/{domain}` | admin | Body `{"senders": ["_spf.google.com", "192.0.2.0/24"]}` (1–50). Publishes immediately; senders the control plane can't flatten return 400. |

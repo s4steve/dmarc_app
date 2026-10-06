@@ -7,7 +7,7 @@ from ..services.spf_flattening_service import spf_flattening_service as spf
 from ..services.third_party_service import third_party_service_identifier
 from ..middleware.rate_limiter import user_limiter
 from ..utils.sanitizer import InputSanitizer
-from .auth import get_current_active_user, require_admin
+from .auth import get_current_active_user, require_admin, require_system_admin
 
 # Managed (flattened) SPF per domain, published on the DNS control plane.
 # Writes change who may send as the domain, so they need an admin.
@@ -38,6 +38,17 @@ async def _status(customer_id: str, domain: str) -> Dict[str, Any]:
         "installed": None if live is None else spf.includes(live, fqdn),
         "suggested_record": spf.suggested_record(live, fqdn),
     }
+
+@router.get("/admin/status")
+async def get_spf_connection_status(current_user: User = Depends(require_system_admin)):
+    """The control-plane connection settings (never the token), for system admins."""
+    return spf.status()
+
+@router.post("/admin/test")
+@user_limiter.limit("10/minute")
+async def test_spf_connection(request: Request, current_user: User = Depends(require_system_admin)):
+    """Checks the settings, the connection, the token and its access to SPF_ZONE."""
+    return await spf.test_connection()
 
 @router.get("/{domain}")
 @user_limiter.limit("30/minute")

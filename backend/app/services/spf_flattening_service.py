@@ -47,6 +47,20 @@ def _zone() -> str:
     return settings.SPF_ZONE.strip().rstrip(".").lower()
 
 
+ROLES = ["viewer", "editor", "owner"]
+
+
+def grant_matches(pattern: str, zone: str) -> bool:
+    """Whether a control-plane grant pattern covers `zone` (both lowercase, trailing dot):
+    `zone.` itself, `*.parent.` for zones strictly below parent, or `*` for every zone.
+    Mirrors Grant::matches in dns_server_db's control-plane/src/auth.rs."""
+    if pattern == "*":
+        return True
+    if pattern.startswith("*."):
+        return zone.endswith(pattern[1:]) and zone != pattern[2:]
+    return zone == pattern
+
+
 def _spf_terms(txt: str) -> Optional[List[str]]:
     """The lowercased terms of an SPF record, or None if it isn't one."""
     terms = txt.lower().split()
@@ -88,6 +102,90 @@ class SpfFlatteningService:
             logger.error(f"DNS control plane {method} {url}: {r.status_code} {r.text[:500]}")
             raise HTTPException(status_code=502, detail="DNS control plane error")
         return r.json()
+
+    # ---- connection status, for system admins ----
+
+    def status(self) -> Dict[str, Any]:
+        """The connection settings as the API sees them. Never includes the token."""
+        url = settings.DNS_CONTROL_PLANE_URL or None
+        transport_error = None
+        if url:
+            try:
+                check_transport(url, settings.DNS_CONTROL_PLANE_ALLOW_HTTP)
+            except ValueError as e:
+                transport_error = str(e)
+        return {
+            "configured": bool(url and settings.DNS_CONTROL_PLANE_TOKEN and settings.SPF_ZONE),
+            "url": url,
+            "zone": settings.SPF_ZONE or None,
+            "token_set": bool(settings.DNS_CONTROL_PLANE_TOKEN),
+            "allow_http": settings.DNS_CONTROL_PLANE_ALLOW_HTTP,
+            "transport_error": transport_error,
+        }
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """Checks each step publishing needs, in order, stopping at the first failure."""
+        checks: List[Dict[str, str]] = []
+
+        def check(name: str, status: str, detail: str) -> bool:
+            checks.append({"name": name, "status": status, "detail": detail})
+            return status != "fail"
+
+        def result() -> Dict[str, Any]:
+            return {"ok": all(c["status"] != "fail" for c in checks), "checks": checks}
+
+        st = self.status()
+        missing = [k for k, v in (("DNS_CONTROL_PLANE_URL", st["url"]), ("DNS_CONTROL_PLANE_TOKEN", st["token_set"]),
+                                  ("SPF_ZONE", st["zone"])) if not v]
+        if not check("Settings", "fail" if missing else "pass",
+                     f"Set {', '.join(missing)} in .env and restart the API" if missing else "URL, token and zone are set"):
+            return result()
+        if not check("Secure transport", "fail" if st["transport_error"] else "pass",
+                     st["transport_error"] or ("https" if st["url"].startswith("https://") else "plain http allowed")):
+            return result()
+
+        base = st["url"].rstrip("/")
+        zone = _zone() + "."
+        headers = {"Authorization": f"Bearer {settings.DNS_CONTROL_PLANE_TOKEN}"}
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                r = await client.get(f"{base}/whoami", headers=headers)
+            except httpx.HTTPError as e:
+                check("Reachable", "fail", f"Couldn't connect to {base}: {e.__class__.__name__} {e}".strip())
+                return result()
+            check("Reachable", "pass", f"{base} answered")
+            if r.status_code == 401:
+                check("Token", "fail", "The control plane rejected the token: it is wrong, revoked or expired")
+                return result()
+            if r.status_code != 200:
+                check("Token", "fail", f"/whoami returned HTTP {r.status_code}; is this a dns_server_db control plane?")
+                return result()
+            me = r.json()
+            expires = me.get("expires_at")
+            if expires:
+                check("Token", "warn", f"Accepted as {me.get('name')}, but it expires {expires}. "
+                      "Mint one with `control-plane create-token` so it doesn't.")
+            else:
+                check("Token", "pass", f"Accepted as {me.get('name')}; never expires")
+
+            if me.get("admin"):
+                check("Can edit SPF zone", "warn", f"Yes, but the token is an admin on every zone. "
+                      f"Use one that is editor on {zone} only.")
+            else:
+                roles = [g.get("role") for g in me.get("grants", []) if grant_matches(g.get("pattern", ""), zone)]
+                best = max(roles, key=lambda x: ROLES.index(x) if x in ROLES else -1, default=None)
+                if best not in ("editor", "owner"):
+                    check("Can edit SPF zone", "fail", f"The token is {best or 'not granted anything'} on {zone}; "
+                          "it needs editor")
+                    return result()
+                check("Can edit SPF zone", "pass", f"{best} on {zone}")
+
+            r = await client.get(f"{base}/zones", headers=headers)
+            names = {z.get("name", "").lower().rstrip(".") + "." for z in r.json().get("zones", [])} if r.status_code == 200 else set()
+            check("Zone exists", "pass" if zone in names else "fail",
+                  f"{zone} is hosted" if zone in names else
+                  f"{zone} doesn't exist on the control plane; create it with POST /zones")
+        return result()
 
     # ---- (customer, domain) -> fqdn mapping ----
 

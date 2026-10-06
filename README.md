@@ -25,6 +25,7 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 - **Service Setup Guides**: Step-by-step instructions for popular email services
 - **DNS Record Assistance**: Automated recommendations for SPF/DKIM/DMARC records
 - **Validation Tools**: Built-in DNS syntax checker and troubleshooting
+- **Managed SPF**: Customers pick the services that send as their domain, and the app publishes a flattened SPF record that stays under the 10-lookup limit and refreshes itself, hosted on a [dns_server_db](https://github.com/s4steve/dns_server_db) server (see [Managed SPF](#managed-spf))
 
 ### 👥 Multi-Tenant Architecture
 - **Customer Isolation**: Complete data separation between organizations
@@ -135,9 +136,7 @@ SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 FROM_EMAIL=alerts@yourdomain.com
 
-# Managed SPF (Optional): flattened SPF hosted on a dns_server_db control plane.
-# The token should be editor on SPF_ZONE only:
-#   control-plane create-token --name dmarc-app --grant spf.yourdomain.net.:editor
+# Managed SPF (Optional): see the Managed SPF section below
 DNS_CONTROL_PLANE_URL=https://cp.yourdomain.net
 DNS_CONTROL_PLANE_TOKEN=dnsdb_...
 SPF_ZONE=spf.yourdomain.net.
@@ -148,6 +147,65 @@ SPF_ZONE=spf.yourdomain.net.
 There are no default credentials. On first start, the API creates a system admin from
 `ADMIN_EMAIL` / `ADMIN_PASSWORD` if the users index is empty. Log in with those, then create
 other users from the Users tab.
+
+## Managed SPF
+
+Managed SPF connects the app to a [dns_server_db](https://github.com/s4steve/dns_server_db) DNS server so customers don't have to maintain SPF records by hand. It is optional: until it is configured, the Managed SPF page and the `/spf` routes return 503.
+
+### How it works
+
+1. On the **Managed SPF** page, an admin picks the services that send mail as the selected domain. Services seen in the domain's DMARC reports are flagged. Senders not in the catalog can be entered by hand as include domains, IPs or CIDRs.
+2. The app sends the list to the DNS server's control plane. The control plane resolves every sender's SPF record into IP addresses and publishes them in a zone you host there, at a name unique to that customer and domain, e.g. `example-com-3f9a1c.spf.yourdomain.net`.
+3. The customer replaces their SPF record with the one the page shows, e.g. `v=spf1 include:example-com-3f9a1c.spf.yourdomain.net ~all`. That is the only DNS change they ever make.
+4. The DNS server re-resolves the senders on a schedule (every 15 minutes by default), so provider IP changes are picked up automatically. The page shows the lookups the include costs, whether the customer's record contains it yet, and the last refresh error, if any.
+
+Anyone can view a domain's policy; only `admin` and `system_admin` users can publish or remove one. Removing is refused while the customer's SPF record still includes the policy, because an include of a name that no longer exists makes SPF fail for all of the domain's mail.
+
+### Setup
+
+1. **Set up the DNS server side.** In dns_server_db, create a shared zone (e.g. `spf.yourdomain.net.`), delegate it to your DNS nodes, and mint a token that is editor on that zone only. Its README's [Connecting the DMARC app](https://github.com/s4steve/dns_server_db#connecting-the-dmarc-app) section has the commands. Mint the token with the `create-token` CLI, so it doesn't expire.
+2. **Configure this app** in `.env`. `docker-compose.yml` passes these to the API container:
+
+   ```env
+   DNS_CONTROL_PLANE_URL=https://cp.yourdomain.net
+   DNS_CONTROL_PLANE_TOKEN=dnsdb_...
+   SPF_ZONE=spf.yourdomain.net.
+   ```
+
+   The token is only ever sent over `https`, except to a loopback address. `DNS_CONTROL_PLANE_ALLOW_HTTP=true` lifts that for development only.
+3. **Restart the API** (`docker compose up -d api`) and check that the feature is on. A domain with no policy should return `"configured": false` rather than a 503:
+
+   ```bash
+   curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/spf/example.com
+   ```
+
+### Local development
+
+Run dns_server_db's multinode stack and create a `spf.test.` zone and a token as its README's local development steps describe. Then set:
+
+```env
+SPF_ZONE=spf.test.
+DNS_CONTROL_PLANE_TOKEN=<the token it printed>
+# Backend run directly on the host (loopback, so plain http is allowed):
+DNS_CONTROL_PLANE_URL=http://127.0.0.1:8054
+# Or, backend in Docker Desktop:
+# DNS_CONTROL_PLANE_URL=http://host.docker.internal:8054
+# DNS_CONTROL_PLANE_ALLOW_HTTP=true
+```
+
+Check a published policy with `dig @127.0.0.1 -p 5301 TXT <include name>`. Nothing on the internet delegates `spf.test`, so the page will always say the include isn't in the domain's SPF record yet; that is expected locally.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| 503 "Managed SPF is not configured" | One of `DNS_CONTROL_PLANE_URL`, `DNS_CONTROL_PLANE_TOKEN` or `SPF_ZONE` is unset in the API container. |
+| 503 "Managed SPF is misconfigured" | The URL is plain `http` to a non-loopback host. Use `https`, or set `DNS_CONTROL_PLANE_ALLOW_HTTP` in development. The API log has details. |
+| 502 "DNS control plane error" | The control plane rejected the app's token: wrong, revoked, or not editor on `SPF_ZONE`. The API log shows the status it returned. |
+| 502 "DNS control plane unreachable" | The URL is wrong or the control plane is down. |
+| 400 with a message about a sender | The control plane couldn't flatten that sender, e.g. a domain with no SPF record, or one that uses macros, `exists:` or `ptr`. |
+| "Last refresh failed" on the page | A scheduled refresh couldn't resolve a sender. The previous addresses stay published until it succeeds. |
+| 409 when removing | The domain's SPF record still includes the policy. Remove the include first. |
 
 ## API Documentation
 

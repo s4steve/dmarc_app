@@ -55,6 +55,11 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      # Managed SPF (optional): see "Managed SPF" in README.md
+      - DNS_CONTROL_PLANE_URL=${DNS_CONTROL_PLANE_URL:-}
+      - DNS_CONTROL_PLANE_TOKEN=${DNS_CONTROL_PLANE_TOKEN:-}
+      - SPF_ZONE=${SPF_ZONE:-}
+      - DNS_CONTROL_PLANE_ALLOW_HTTP=${DNS_CONTROL_PLANE_ALLOW_HTTP:-false}
     depends_on:
       elasticsearch:
         condition: service_healthy

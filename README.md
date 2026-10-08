@@ -1,5 +1,7 @@
 # DMARC Analytics Platform
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A comprehensive SaaS solution for monitoring, analyzing, and improving email authentication posture for small and medium businesses.
 
 ## Features
@@ -559,7 +561,7 @@ The platform includes comprehensive monitoring capabilities:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ## Roadmap
 

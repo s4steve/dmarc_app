@@ -165,7 +165,7 @@ class TestElasticsearchService:
         es_service_instance.create_indices()
         
         # Verify that indices.create was called for each index
-        assert mock_es_client.indices.create.call_count == 4  # reports, dns, users, services
+        assert mock_es_client.indices.create.call_count == 5  # reports, dns, users, services, domains
     
     def test_create_indices_already_exist(self, es_service_instance, mock_es_client):
         """Test indices creation when indices already exist"""

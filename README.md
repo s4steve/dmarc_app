@@ -16,6 +16,7 @@ A comprehensive SaaS solution for monitoring, analyzing, and improving email aut
 - **Trend Analysis**: Historical data visualization with Recharts
 - **Service Breakdown**: Automatic identification of third-party email services
 - **Compliance Scoring**: Industry-standard email authentication scoring
+- **Report Export**: Download a period's totals, senders and daily figures as CSV or PDF through the API
 
 ### 🚨 Security Alerting
 - **Threat Detection**: Automated alerts for suspicious email activity
@@ -148,7 +149,8 @@ SPF_ZONE=spf.yourdomain.net.
 ### First Login
 There are no default credentials. On first start, the API creates a system admin from
 `ADMIN_EMAIL` / `ADMIN_PASSWORD` if the users index is empty. Log in with those, then create
-other users from the Users tab.
+other users from the Users tab. A new install has no domains: add yours with the **+** next to the
+domain menu. They're stored in Elasticsearch, so they survive restarts and upgrades.
 
 ## Managed SPF
 
@@ -292,18 +294,16 @@ curl -X POST -H "Authorization: Bearer $TOKEN" $API/auth/logout
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/analytics/detailed-report` | user | Detailed metrics for the period. Query: `days` (1-365, default 30). |
-| GET | `/analytics/export/{format}` | user | `format` is `json`, `csv` or `pdf`. Query: `days`. **Only `json` works at the moment**; `csv` and `pdf` return 500 because the export functions aren't implemented yet. |
+| GET | `/analytics/detailed-report` | user | Detailed metrics for the period. Query: `days` (1-365, default 30). `compliance_score.overall_score` is `null` when the last 7 days have no reports, and `volume_growth_7d` is `null` until there are 14 days to compare. |
+| GET | `/analytics/export/{format}` | user | `format` is `json`, `csv` or `pdf`. Query: `days`. `csv` and `pdf` download as a file: the period's totals, each sender, the servers failing most, and each day. |
 
 #### Domains — `/domains`
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/domains/` | user | The customer's monitored domains. |
-| POST | `/domains/` | user | Body `{"name": "example.com"}`. The name must be a valid DNS name. |
-| DELETE | `/domains/{domain_id}` | user | Remove a domain. |
-
-> Domains are currently held in memory, so they're lost when the API restarts.
+| POST | `/domains/` | user | Body `{"name": "example.com"}`. The name must be a valid DNS name. 409 if already added. |
+| DELETE | `/domains/{domain_id}` | user | Remove a domain. Its reports are kept. |
 
 #### DNS — `/dns` and `/dns-scanner`
 
@@ -449,9 +449,10 @@ DMARC_EMAIL=mcp@yourdomain.com DMARC_PASSWORD=<password> npx @modelcontextprotoc
 ## Usage Guide
 
 ### 1. Initial Setup
-1. Log in with the default admin credentials
-2. Initialize third-party service identification: `POST /api/v1/services/initialize`
-3. Configure notification preferences in the dashboard
+1. Log in as `ADMIN_EMAIL` (see [First Login](#first-login))
+2. Add your domains with the **+** next to the domain menu
+3. Initialize third-party service identification: `POST /api/v1/services/initialize`
+4. Configure notification preferences in the dashboard
 
 ### 2. Upload DMARC Reports
 - Use the Upload tab in the dashboard
@@ -514,6 +515,8 @@ npm test
 - **DNS Service**: SPF/DKIM/DMARC validation, recommendations engine
 - **Multi-tenancy**: Customer data isolation across all services
 - **Security**: Authentication, input validation, cryptographic security
+- **Domains**: Storage per customer, duplicates, deletion
+- **Report Export**: CSV and PDF contents, spreadsheet formula safety, report figures
 
 ## Deployment
 
@@ -524,7 +527,7 @@ npm test
 4. Scale Elasticsearch cluster for production load
 
 ### Security Considerations
-- Change default admin credentials
+- Use a strong `ADMIN_PASSWORD`
 - Use strong SECRET_KEY
 - Configure CORS origins appropriately
 - Set up proper firewall rules

@@ -39,30 +39,8 @@ export const DomainProvider: React.FC<DomainProviderProps> = ({ children }) => {
       setIsLoading(true);
       setError('');
       
-      // Try to load domains from API, fallback to mock data if API fails
-      let domainsData: Domain[];
-      try {
-        domainsData = await domainAPI.getDomains();
-      } catch (apiError) {
-        // Fallback to mock domains if API is not available
-        domainsData = [
-          {
-            id: '1',
-            name: 'example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_active: true
-          },
-          {
-            id: '2', 
-            name: 'company.org',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_active: true
-          }
-        ];
-      }
-      
+      const domainsData = await domainAPI.getDomains();
+
       setDomains(domainsData);
       
       // Set the first domain as selected if none is selected
@@ -81,21 +59,8 @@ export const DomainProvider: React.FC<DomainProviderProps> = ({ children }) => {
       setIsLoading(true);
       setError('');
       
-      // Try to add domain via API, fallback to mock if API fails
-      let newDomain: Domain;
-      try {
-        newDomain = await domainAPI.addDomain(domainName);
-      } catch (apiError) {
-        // Fallback to mock domain creation
-        newDomain = {
-          id: String(domains.length + 1),
-          name: domainName,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_active: true
-        };
-      }
-      
+      const newDomain = await domainAPI.addDomain(domainName);
+
       setDomains(prev => [...prev, newDomain]);
       
       // Select the newly added domain

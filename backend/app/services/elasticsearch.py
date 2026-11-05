@@ -19,7 +19,8 @@ class ElasticsearchService:
             self._get_dmarc_reports_index(),
             self._get_dns_records_index(),
             self._get_users_index(),
-            self._get_third_party_services_index()
+            self._get_third_party_services_index(),
+            self._get_domains_index()
         ]
         
         for index_name, mapping in indices:
@@ -107,6 +108,20 @@ class ElasticsearchService:
         }
         return index_name, mapping
     
+    def _get_domains_index(self):
+        index_name = f"{self.index_prefix}-domains"
+        mapping = {
+            "properties": {
+                "customer_id": {"type": "keyword"},
+                "id": {"type": "keyword"},
+                "name": {"type": "keyword"},
+                "is_active": {"type": "boolean"},
+                "created_at": {"type": "date"},
+                "updated_at": {"type": "date"}
+            }
+        }
+        return index_name, mapping
+
     def _get_third_party_services_index(self):
         index_name = f"{self.index_prefix}-services"
         mapping = {

@@ -34,8 +34,8 @@ const AddDomainModal: React.FC<AddDomainModalProps> = ({ isOpen, onClose }) => {
       await addDomain(domainName.trim().toLowerCase());
       setDomainName('');
       onClose();
-    } catch (err) {
-      setError('Failed to add domain. Please try again.');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to add domain. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

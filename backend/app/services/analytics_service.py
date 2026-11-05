@@ -3,7 +3,16 @@ from datetime import datetime, timedelta
 from ..services.elasticsearch import es_service
 import json
 
+# The label for a report row no sender matched
+UNKNOWN = "unknown"
+
 class AdvancedAnalyticsService:
+    @staticmethod
+    def _period_filter(customer_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        return {"bool": {"filter": [
+            {"term": {"customer_id": customer_id}},
+            {"range": {"metadata.date_range_begin": {"gte": start_date.isoformat(), "lte": end_date.isoformat()}}}]}}
+
     async def get_detailed_report(self, customer_id: str, days: int = 30) -> Dict[str, Any]:
         """Generate comprehensive analytics report"""
         end_date = datetime.utcnow()
@@ -203,12 +212,13 @@ class AdvancedAnalyticsService:
                 })
             
             # Calculate growth rates
-            if len(trends) >= 2:
-                recent_volume = sum(t['volume'] for t in trends[-7:]) / 7
-                previous_volume = sum(t['volume'] for t in trends[-14:-7]) / 7
-                volume_growth = ((recent_volume - previous_volume) / previous_volume * 100) if previous_volume > 0 else 0
-            else:
-                volume_growth = 0
+            # Comparing two weeks needs two weeks of days; None until then
+            volume_growth = None
+            if len(trends) >= 14:
+                recent_volume = sum(t['volume'] for t in trends[-7:])
+                previous_volume = sum(t['volume'] for t in trends[-14:-7])
+                if previous_volume > 0:
+                    volume_growth = (recent_volume - previous_volume) / previous_volume * 100
             
             return {
                 'daily_trends': trends,
@@ -223,157 +233,68 @@ class AdvancedAnalyticsService:
     
     async def _get_service_performance(self, customer_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Analyze performance by email service"""
+        def emails():
+            return {"sum": {"field": "records.count"}}
         query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"customer_id": customer_id}},
-                        {"range": {
-                            "metadata.date_range_begin": {
-                                "gte": start_date.isoformat(),
-                                "lte": end_date.isoformat()
-                            }
-                        }}
-                    ]
-                }
-            },
-            "aggs": {
-                "services": {
-                    "terms": {
-                        "script": {
-                            "source": """
-                            params._source.records.stream()
-                                .map(record -> record.third_party_service != null ? record.third_party_service : 'Unknown')
-                                .collect(Collectors.toList())
-                            """
-                        },
-                        "size": 20
-                    },
-                    "aggs": {
-                        "service_volume": {
-                            "sum": {
-                                "script": {
-                                    "source": """
-                                    params._source.records.stream()
-                                        .filter(record -> {
-                                            String service = record.third_party_service != null ? record.third_party_service : 'Unknown';
-                                            return service.equals(params.service);
-                                        })
-                                        .mapToInt(record -> record.count).sum()
-                                    """,
-                                    "params": {"service": ""}
-                                }
-                            }
-                        },
-                        "service_pass": {
-                            "sum": {
-                                "script": {
-                                    "source": """
-                                    params._source.records.stream()
-                                        .filter(record -> {
-                                            String service = record.third_party_service != null ? record.third_party_service : 'Unknown';
-                                            return service.equals(params.service) && record.dmarc_result.equals('pass');
-                                        })
-                                        .mapToInt(record -> record.count).sum()
-                                    """,
-                                    "params": {"service": ""}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            "query": self._period_filter(customer_id, start_date, end_date),
+            "aggs": {"records": {"nested": {"path": "records"}, "aggs": {"services": {
+                "terms": {"field": "records.third_party_service", "size": 50, "order": {"volume": "desc"}},
+                "aggs": {
+                    "volume": emails(),
+                    "passed": {"filter": {"term": {"records.dmarc_result": "pass"}}, "aggs": {"emails": emails()}},
+                }}}}},
         }
         
         try:
-            result = es_service.search_documents("reports", query)
-            service_buckets = result.get("aggregations", {}).get("services", {}).get("buckets", [])
-            
+            result = es_service.search_documents("reports", query, size=0)
             services = []
-            for bucket in service_buckets:
-                service_name = bucket["key"]
-                volume = int(bucket["service_volume"]["value"])
-                passed = int(bucket["service_pass"]["value"])
-                
+            for bucket in result["aggregations"]["records"]["services"]["buckets"]:
+                volume = int(bucket["volume"]["value"])
+                passed = int(bucket["passed"]["emails"]["value"])
                 services.append({
-                    'service': service_name,
+                    'service': bucket["key"],
                     'volume': volume,
                     'pass_rate': (passed / volume * 100) if volume > 0 else 0,
                     'failed_emails': volume - passed
                 })
             
             return {
-                'services': sorted(services, key=lambda x: x['volume'], reverse=True),
-                'total_services': len([s for s in services if s['service'] != 'Unknown']),
-                'unknown_volume': next((s['volume'] for s in services if s['service'] == 'Unknown'), 0)
+                'services': services,
+                'total_services': len([s for s in services if s['service'] != UNKNOWN]),
+                'unknown_volume': next((s['volume'] for s in services if s['service'] == UNKNOWN), 0)
             }
         except Exception:
             return {}
     
     async def _get_threat_intelligence(self, customer_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Analyze potential security threats"""
+        failures = {"sum": {"field": "records.count"}}
         query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"customer_id": customer_id}},
-                        {"range": {
-                            "metadata.date_range_begin": {
-                                "gte": start_date.isoformat(),
-                                "lte": end_date.isoformat()
-                            }
-                        }}
-                    ]
-                }
-            },
-            "aggs": {
-                "failed_sources": {
-                    "terms": {
-                        "script": {
-                            "source": """
-                            params._source.records.stream()
-                                .filter(record -> !record.dmarc_result.equals('pass'))
-                                .map(record -> record.source_ip)
-                                .collect(Collectors.toList())
-                            """
-                        },
-                        "size": 10
-                    },
-                    "aggs": {
-                        "failure_count": {
-                            "sum": {
-                                "script": {
-                                    "source": """
-                                    params._source.records.stream()
-                                        .filter(record -> record.source_ip.equals(params.ip) && !record.dmarc_result.equals('pass'))
-                                        .mapToInt(record -> record.count).sum()
-                                    """,
-                                    "params": {"ip": ""}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            "query": self._period_filter(customer_id, start_date, end_date),
+            "aggs": {"records": {"nested": {"path": "records"}, "aggs": {"failed": {
+                "filter": {"bool": {"must_not": {"term": {"records.dmarc_result": "pass"}}}},
+                "aggs": {
+                    "total": failures,
+                    "source_count": {"cardinality": {"field": "records.source_ip"}},
+                    "high_failure": {"terms": {"field": "records.source_ip", "size": 1000},
+                                     "aggs": {"failures": failures,
+                                              "over_100": {"bucket_selector": {
+                                                  "buckets_path": {"n": "failures"}, "script": "params.n > 100"}}}},
+                    "sources": {"terms": {"field": "records.source_ip", "size": 5, "order": {"failures": "desc"}},
+                                "aggs": {"failures": failures}},
+                }}}}},
         }
         
         try:
-            result = es_service.search_documents("reports", query)
-            failed_sources = result.get("aggregations", {}).get("failed_sources", {}).get("buckets", [])
-            
-            suspicious_sources = []
-            for bucket in failed_sources[:5]:  # Top 5 suspicious sources
-                suspicious_sources.append({
-                    'ip': bucket["key"],
-                    'failed_emails': int(bucket["failure_count"]["value"])
-                })
-            
+            result = es_service.search_documents("reports", query, size=0)
+            failed = result["aggregations"]["records"]["failed"]
             return {
-                'suspicious_sources': suspicious_sources,
-                'total_failed_sources': len(failed_sources),
+                'suspicious_sources': [{'ip': b["key"], 'failed_emails': int(b["failures"]["value"])}
+                                       for b in failed["sources"]["buckets"]],
+                'total_failed_sources': failed["source_count"]["value"],
                 'threat_indicators': {
-                    'high_failure_ips': len([s for s in failed_sources if s["failure_count"]["value"] > 100]),
-                    'authentication_bypass_attempts': sum(s["failure_count"]["value"] for s in failed_sources)
+                    'high_failure_ips': len(failed["high_failure"]["buckets"]),
+                    'authentication_bypass_attempts': int(failed["total"]["value"])
                 }
             }
         except Exception:
@@ -390,6 +311,10 @@ class AdvancedAnalyticsService:
             start_date = end_date - timedelta(days=7)
             
             metrics = await self._get_basic_metrics(customer_id, start_date, end_date)
+            
+            # No reports this week says nothing about how authentication is doing
+            if not metrics.get('total_emails'):
+                return {'overall_score': None, 'level': 'No recent reports', 'color': 'gray', 'recommendations': []}
             
             # Scoring criteria
             spf_score = min(metrics.get('spf_pass_rate', 0), 100) * 0.3
